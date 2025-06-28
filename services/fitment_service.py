@@ -1,0 +1,226 @@
+from datetime import datetime
+from services.mongo_service import candidates_collection, roles_collection
+from services.qdrant_service import client, RESUME_COLLECTION, JD_COLLECTION
+from sklearn.metrics.pairwise import cosine_similarity
+from sentence_transformers import SentenceTransformer
+from services.resume_segmenter import split_resume_into_chunks
+from services.ollama_utils import call_fitment_llm, build_prompt
+import numpy as np
+import time
+import json
+import re
+
+# Fast and small model for chunk scoring
+model = SentenceTransformer("BAAI/bge-small-en-v1.5")
+
+
+def score_fitment_logic(candidate_id: str):
+    try:
+        print(f"🔍 Input candidate_id: {candidate_id}")
+
+        candidate = candidates_collection.find_one({"candidate_id": candidate_id})
+        if not candidate:
+            print("❌ Candidate not found in MongoDB.")
+            return None
+
+        role_id = candidate["applied_role_id"]
+        resume_id = int(candidate_id.replace("CND-", ""))
+
+        print(f"✅ Candidate: {candidate['name']}")
+        print(f"🔧 Resume ID: {resume_id}, Role ID: {role_id}")
+
+        resume_vector = get_vector_by_id(RESUME_COLLECTION, resume_id)
+        jd_vector = get_vector_by_id(JD_COLLECTION, int(role_id))
+
+        if resume_vector is None or jd_vector is None:
+            print("❌ One or both vectors missing from Qdrant.")
+            return None
+
+        print("✅ Vectors found – computing similarity...")
+        sim_score = compute_cosine_similarity(resume_vector, jd_vector)
+        fitment_percent = round(sim_score * 100, 2)
+
+        jd_doc = roles_collection.find_one({"role_id": role_id})
+        if not jd_doc or "job_description" not in jd_doc:
+            print("❌ JD not found in MongoDB.")
+            return None
+
+        jd_text = jd_doc["job_description"]
+        resume_text = candidate["resume_text"]
+
+        print("✅ Calling LLM for fitment analysis...")
+        start = time.time()
+
+        focused_resume = extract_top_relevant_chunks(jd_text, resume_text)
+        print("🧩 Selected resume chunks (preview):\n", focused_resume[:500], "\n...trimmed")
+
+        llm_analysis = get_cleaned_fitment_analysis(jd_text, focused_resume)
+
+        print("⏱️ LLM analysis took", round(time.time() - start, 2), "seconds")
+
+        result = {
+            "candidate_id": candidate_id,
+            "applied_role_id": role_id,
+            "fitment_score": fitment_percent,
+            "semantic_similarity": round(sim_score, 4),
+            **llm_analysis
+        }
+
+        # ✅ Store in MongoDB under 'results'
+        result_to_store = result.copy()
+        result_to_store["scored_at"] = datetime.now()
+
+        candidates_collection.update_one(
+            {"candidate_id": candidate_id},
+            {"$set": {"results": result_to_store}}
+        )
+
+        return result
+
+    except Exception as e:
+        print("❌ Error in score_fitment_logic:", e)
+        return None
+
+
+def get_vector_by_id(collection, id):
+    result = client.retrieve(
+        collection_name=collection,
+        ids=[id],
+        with_vectors=True
+    )
+    if result and result[0].vector:
+        return np.array(result[0].vector).reshape(1, -1)
+    return None
+
+
+def compute_cosine_similarity(v1, v2):
+    return float(cosine_similarity(v1, v2)[0][0])
+
+
+def extract_top_relevant_chunks(jd_text, resume_text, min_percent=0.2, min_coverage_chars=750):
+    jd_vector = model.encode(jd_text).reshape(1, -1)
+    resume_chunks = split_resume_into_chunks(resume_text)
+
+    chunk_scores = []
+    for i, chunk in enumerate(resume_chunks):
+        chunk_vec = model.encode(chunk).reshape(1, -1)
+        score = compute_cosine_similarity(chunk_vec, jd_vector)
+        print(f"Chunk {i+1} | Score: {round(score, 4)} | Length: {len(chunk)}")
+        chunk_scores.append((chunk, score))
+
+    top_chunks = sorted(chunk_scores, key=lambda x: x[1], reverse=True)
+
+    total_resume_chars = len(resume_text)
+    threshold_chars = max(min_coverage_chars, int(total_resume_chars * min_percent))
+
+    selected = []
+    accumulated = 0
+    for chunk, _ in top_chunks:
+        selected.append(chunk)
+        accumulated += len(chunk)
+        if accumulated >= threshold_chars:
+            break
+
+    return "\n\n".join(selected)
+
+
+def get_cleaned_fitment_analysis(jd_text, resume_text):
+    prompt = build_prompt(jd_text, resume_text)
+    print("📦 Prompt preview:\n", prompt[:500], "\n...trimmed")
+    print("📏 Prompt length (chars):", len(prompt))
+
+    raw_output = call_fitment_llm(prompt)
+    print("🧠 Raw model output preview:\n", raw_output[:1000])
+
+    json_match = re.search(r"\{[\s\S]*\}", raw_output)
+    if not json_match:
+        print("⚠️ No valid JSON found in output.")
+        return empty_fitment_output()
+
+    try:
+        parsed = json.loads(json_match.group())
+        return clean_llm_gap_output(parsed)
+    except Exception as e:
+        print("❌ JSON parsing failed:", e)
+        return empty_fitment_output()
+
+
+def clean_llm_gap_output(raw_output):
+    def canonicalize(skill):
+        return (
+            skill.strip()
+            .lower()
+            .replace(" or similar", "")
+            .replace("basic knowledge of", "")
+            .replace("familiarity with", "")
+            .replace("understanding of", "")
+            .replace("experience in", "")
+            .replace("advanced", "")
+            .replace("basics", "")
+            .replace("(", "")
+            .replace(")", "")
+            .strip()
+        )
+
+    def dedup_skills(skill_list):
+        if not isinstance(skill_list, list):
+            return []
+        seen = set()
+        cleaned = []
+        for skill in skill_list:
+            canon = canonicalize(skill)
+            if canon not in seen:
+                seen.add(canon)
+                cleaned.append(skill)
+        return sorted(cleaned)
+
+    # ✅ Top-level check
+    if not raw_output or not isinstance(raw_output, dict):
+        return empty_fitment_output()
+
+    # ✅ Defensive checks for nested keys
+    gap_analysis = raw_output.get("gap_analysis", {})
+    if not isinstance(gap_analysis, dict):
+        return empty_fitment_output()
+
+    suggestions = raw_output.get("suggestions", {})
+    if not isinstance(suggestions, dict):
+        return empty_fitment_output()
+
+    # ✅ Safe extraction
+    minor_clean = dedup_skills(gap_analysis.get("minor", []))
+    major_raw = dedup_skills(gap_analysis.get("major", []))
+    major_clean = [s for s in major_raw if canonicalize(s) not in map(canonicalize, minor_clean)]
+
+    resume_improvements = suggestions.get("resume_improvements", "")
+    if isinstance(resume_improvements, list):
+        resume_improvements = " ".join(resume_improvements)
+    elif not isinstance(resume_improvements, str):
+        resume_improvements = ""
+
+    return {
+        "gap_analysis": {
+            "minor": minor_clean,
+            "major": major_clean
+        },
+        "suggestions": {
+            "resume_improvements": resume_improvements.strip(),
+            "skills_to_add": dedup_skills(suggestions.get("skills_to_add", [])),
+            "learning_resources": (
+                suggestions.get("learning_resources", [])
+                if isinstance(suggestions.get("learning_resources", []), list)
+                else []
+            )
+        }
+    }
+
+
+def empty_fitment_output():
+    return {
+        "gap_analysis": {"minor": [], "major": []},
+        "suggestions": {
+            "resume_improvements": "",
+            "skills_to_add": [],
+            "learning_resources": []
+        }
+    }

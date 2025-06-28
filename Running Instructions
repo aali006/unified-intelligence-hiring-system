@@ -1,0 +1,33 @@
+1. On CMD
+a. Run Qdrant:
+(in cmd promt not powershell)
+One-time setup:
+bash:
+docker volume create qdrant_data
+
+docker run -d --name qdrant_server -p 7000:6333 -v qdrant_data:/qdrant/storage qdrant/qdrant
+
+Daily start:
+bash:
+docker start qdrant_server
+
+Daily stop:
+bash:
+docker stop qdrant_server
+
+b. Run MongoDB:
+mongod
+c. Run Ollama mistral
+ollama run mistral
+2. Run main.py:
+uvicorn main:app --reload
+or
+uvicorn main:app --reload --port 8080
+3. Check Database in MongoDB:
+a. mongosh
+b. show dbs
+c. use
+d. show collections
+4. Check Qdrant DB and vectors
+a. go to view_qdrant.py
+b. python view_qdrant.py
