@@ -1,0 +1,191 @@
+Absolutely—let’s break it down **step by step** so you not only know **what to do**, but also **why you’re doing it**.
+This will cover **first-time setup** + your **daily workflow**.
+
+---
+
+## 🟢 FIRST TIME ONLY (on your local project)
+
+### ✅ 1) Go to your project folder
+
+Open a terminal (Command Prompt, PowerShell, macOS/Linux Terminal), then:
+
+```bash
+cd path/to/your/project
+```
+
+🔹 **What this does:** Makes sure you’re *inside* the folder where your project files live.
+
+---
+
+### ✅ 2) Initialize Git
+
+```bash
+git init
+```
+
+🔹 **What this does:** Creates a hidden `.git/` folder in your project. This marks your folder as a Git repository and starts tracking changes.
+
+---
+
+### ✅ 3) Add your remote repository
+
+First, go to GitHub.com, log into your account, click **New Repository**, create an empty repo (no README), and copy the URL it gives you—e.g.:
+
+```
+https://github.com/your-username/your-repo.git
+```
+
+Then in your terminal:
+
+```bash
+git remote add origin https://github.com/your-username/your-repo.git
+```
+
+🔹 **What this does:** Links your local Git repo with your repo on GitHub—so you can push/pull changes.
+
+---
+
+### ✅ 4) Add all project files to Git
+
+```bash
+git add .
+```
+
+🔹 **What this does:** Stages *all* files in the project so Git knows you want to include them in the next snapshot/commit.
+
+---
+
+### ✅ 5) Make your first commit
+
+```bash
+git commit -m "Initial commit with all project files"
+```
+
+🔹 **What this does:** Creates a permanent snapshot of your staged files with a message describing what’s in it.
+
+---
+
+### ✅ 6) Push to GitHub
+
+```bash
+git branch -M main        # (Optional) Renames your branch to 'main' if needed
+git push -u origin main
+```
+
+🔹 **What this does:** Uploads your commits to GitHub.
+🔹 `-u` sets `origin/main` as the default upstream branch so you can just run `git push` later.
+
+🎉 **Your project is now on GitHub!**
+
+---
+
+## 🟡 DAILY WORKFLOW (every day you work on your code)
+
+Here’s what you’ll do every time you want to upload your day’s work:
+
+---
+
+### ✅ 1) See what changed
+
+```bash
+git status
+```
+
+🔹 **What this does:** Shows what files you modified since your last commit. Very useful to avoid accidentally missing anything.
+
+---
+
+### ✅ 2) Add the changed files
+
+```bash
+git add .
+```
+
+🔹 **What this does:** Stages your changed files so they’ll be included in your next commit.
+
+---
+
+### ✅ 3) Commit your changes
+
+```bash
+git commit -m "Describe today's changes here"
+```
+
+🔹 **What this does:** Records a new snapshot of the changes you staged, with a message to help you remember what you did.
+
+---
+
+### ✅ 4) Push your changes to GitHub
+
+```bash
+git push
+```
+
+🔹 **What this does:** Uploads your new commits to your GitHub repo.
+
+---
+
+## 🔵 OPTIONAL: Checking history
+
+See your full commit history with:
+
+```bash
+git log
+```
+
+This shows who made what changes and when.
+🔹 Use it to track your progress or go back to older versions.
+
+---
+
+## 🔴 OPTIONAL: Reverting to an old version
+
+If you need to discard your current work and go back to a previous commit:
+
+1️⃣ Run:
+
+```bash
+git log
+```
+
+Copy the hash of the commit you want.
+
+2️⃣ Then reset:
+
+```bash
+git reset --hard <commit-hash>
+```
+
+3️⃣ Finally, if you want GitHub to match your local reset:
+
+```bash
+git push -f
+```
+
+🔹 **What this does:** Overwrites your remote repo with your local repo’s state.
+🚨 **Caution:** this will discard newer commits on GitHub—use only if you’re sure!
+
+---
+
+## 🚨 TIPS
+
+✅ **Write clear commit messages** like:
+
+* `"Fix bug in resume parsing"`
+* `"Add candidate skills extraction logic"`
+* `"Refactor location extraction"`
+
+✅ **.gitignore**: If you ever need to exclude files/folders (like logs or secrets), add a file called `.gitignore` with patterns of what you want Git to ignore.
+
+---
+
+## 🔵 TL;DR DAILY CHECKLIST
+
+* `git status` → What changed?
+* `git add .` → Stage changes
+* `git commit -m "Your message"` → Save snapshot
+* `git push` → Upload to GitHub
+
+---
+
+Would you like me to help you create a `.gitignore` file or automate daily backups?
