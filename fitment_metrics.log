@@ -1,0 +1,31 @@
+2025-07-01 04:06:08,989 - INFO - Scoring candidate_id: CND-6810
+2025-07-01 04:06:09,052 - INFO - Computed semantic similarity: 0.4394
+2025-07-01 04:06:09,053 - ERROR - No valid resume chunks or chunk embeddings.
+2025-07-01 04:07:39,867 - INFO - Scoring candidate_id: CND-8544
+2025-07-01 04:07:39,901 - INFO - Computed semantic similarity: 0.4394
+2025-07-01 04:07:39,902 - ERROR - No valid resume chunks or chunk embeddings.
+2025-07-01 04:19:38,999 - INFO - Scoring candidate_id: CND-8544
+2025-07-01 04:19:39,034 - INFO - Computed semantic similarity: 0.4394
+2025-07-01 04:19:39,034 - ERROR - No valid resume chunks or chunk embeddings.
+2025-07-01 04:24:15,688 - INFO - Scoring candidate_id: CND-8544
+2025-07-01 04:24:15,707 - INFO - Computed semantic similarity: 0.4394
+2025-07-01 04:24:15,707 - ERROR - No valid resume chunks or chunk embeddings.
+2025-07-01 04:25:25,331 - INFO - Scoring candidate_id: CND-8544
+2025-07-01 04:25:25,362 - INFO - Computed semantic similarity: 0.4394
+2025-07-01 04:25:25,362 - INFO - Extracted resume text length: 4707
+2025-07-01 04:25:25,362 - INFO - First 300 chars of resume text:
+HLADINI AGNIVESH
+Mumbai | agnivesh.hladini@gmail.com | +91 7259411161 | linkedin.com/in/hladini-agnivesh/
+New Ventures at Tata Group | FamPhy - Founder's Office | ZS | NIT Silchar - Gold Medalist | ERASMUS+ Scholar
+SKILLS AND TOOLS____________________________________________________________________
+
+2025-07-01 04:25:25,363 - INFO - Number of chunks produced: 1
+2025-07-01 04:25:25,420 - INFO - Best chunk similarity: 0.4394
+2025-07-01 04:25:25,420 - INFO - Running LLM-based gap analysis...
+2025-07-01 04:29:31,593 - INFO - Fitment result ready for candidate CND-8544.
+2025-07-01 04:35:54,706 - INFO - Scoring candidate_id: CND-8544
+2025-07-01 04:35:54,819 - INFO - Computed semantic similarity: 0.4394
+2025-07-01 04:35:54,822 - INFO - Fitment result ready for candidate CND-8544.
+2025-07-01 04:36:02,372 - INFO - Scoring candidate_id: CND-8544
+2025-07-01 04:36:02,424 - INFO - Computed semantic similarity: 0.4394
+2025-07-01 04:36:02,426 - INFO - Fitment result ready for candidate CND-8544.

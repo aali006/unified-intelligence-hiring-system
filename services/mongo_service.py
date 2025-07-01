@@ -39,7 +39,7 @@ def store_candidate(candidate_id, name, applied_role, applied_role_id, resume_te
         "github": github,
         "location": location,
         "phone": phone,
-        "skills_present": skills_present,  # ✅ New field
+        "skills_present": skills_present,
         "file_name": stored_file_name,
         "resume_file": file_bytes
     })

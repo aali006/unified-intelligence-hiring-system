@@ -20,9 +20,10 @@ from services.resume_utils import (
     extract_email,
     extract_github,
     extract_phone,
-    extract_location_segment, extract_skills_section, clean_location_output
+    extract_skills_section,
+    extract_contact_block_for_location,
+    extract_location_with_spacy  # ✅ NEW
 )
-from services.ollama_utils import extract_location_with_llm
 from services.fitment_service import score_fitment_logic
 import re
 
@@ -82,7 +83,7 @@ async def update_role_api(role_id: str, update_data: dict = Body(...)):
 async def delete_role_api(role_id: str):
     deleted = delete_role(role_id)
     if deleted:
-        delete_jd_vector(int(role_id))  # stored as int in Qdrant
+        delete_jd_vector(int(role_id))
         return {"message": f"Role {role_id} deleted."}
     else:
         raise HTTPException(status_code=404, detail="Role not found.")
@@ -107,6 +108,7 @@ async def add_candidate(
 
     resume_text = extract_text_from_resume(file_bytes, resume_file.filename)
     print("🔎 Extracted resume text preview:\n", resume_text[:3000])
+
     # Extract and refine skills
     raw_skills_text = extract_skills_section(resume_text)
     print("🔎 Raw skills section text:\n", raw_skills_text[:1000])
@@ -118,36 +120,32 @@ async def add_candidate(
         stripped = line.strip()
 
         if idx == 0:
-            continue  # Always skip the heading line itself
+            continue
 
-        # ✅ Main patterns: bullet points, lines with colon, or lines with comma
         if (
-                stripped
-                and (
+            stripped
+            and (
                 stripped.startswith(("•", "-", "◦", "·"))
                 or ":" in stripped
                 or stripped.count(",") >= 1
-        )
-                and not re.match(
-            r"(?i)(organized|managed|developed|led|worked|responsibilities|designation|president)",
-            stripped,
-        )
+            )
+            and not re.match(
+                r"(?i)(organized|managed|developed|led|worked|responsibilities|designation|president)",
+                stripped,
+            )
         ):
             filtered_skills.append(stripped)
             last_line_ended_with_comma = stripped.endswith((",", ";"))
         elif last_line_ended_with_comma and stripped:
-            # ✅ Accept continuation line if previous line ended with comma/semicolon
             filtered_skills.append(stripped)
             last_line_ended_with_comma = stripped.endswith((",", ";"))
         elif (
-                stripped
-                and len(stripped.split()) == 1
-                and stripped.endswith((".", ";", ","))
+            stripped
+            and len(stripped.split()) == 1
+            and stripped.endswith((".", ";", ","))
         ):
-            # ✅ Accept dangling one-word lines ending with ., ;, or ,
             filtered_skills.append(stripped)
         elif stripped:
-            # 🔥 NEW: check for long lowercase words as a fallback pattern
             words = stripped.split()
             cleaned_words = [re.sub(r'\W+$', '', w) for w in words]
             long_lowercase_words = [w for w in cleaned_words if w.islower() and len(w) >= 6]
@@ -155,27 +153,21 @@ async def add_candidate(
                 filtered_skills.append(stripped)
                 last_line_ended_with_comma = stripped.endswith((",", ";"))
             else:
-                break  # Aggressively end capture if none of the above matched
+                break
         else:
-            # ✅ Blank line signals end of section
             break
 
     skills_present = filtered_skills
     print("✅ Final skills_present:", skills_present)
 
-    # ✅ Fast regex + focused LLM only for location
+    # ✅ Regex + spaCy for location
     email = extract_email(resume_text)
     github = extract_github(resume_text)
     phone = extract_phone(resume_text)
-    location_segment = extract_location_segment(resume_text)
-    print("🔎 Location segment extracted:\n", location_segment.strip())
 
-    if location_segment.strip():
-        raw_location = extract_location_with_llm(location_segment)
-        print("🔎 Raw location model output:", raw_location)
-        location = clean_location_output(raw_location)
-    else:
-        location = ""
+    contact_block = extract_contact_block_for_location(resume_text)
+    location = extract_location_with_spacy(contact_block)
+    print("✅ spaCy-extracted location:", location)
 
     ext = resume_file.filename.split(".")[-1]
     stored_file_name = f"{name.replace(' ', '_')}_{applied_role.replace(' ', '_')}_{candidate_id_str}.{ext}"
@@ -193,7 +185,7 @@ async def add_candidate(
         location=location,
         phone=phone,
         timestamp=datetime.now(),
-        skills_present=skills_present  # ✅ New
+        skills_present=skills_present
     )
 
     qdrant_status = store_resume_embedding(candidate_id_num, resume_text, name, applied_role)

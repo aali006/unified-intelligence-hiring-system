@@ -8,3 +8,4 @@ for collection in ["job_descriptions", "resumes"]:
         print(f"✅ Deleted Qdrant collection: {collection}")
     except Exception as e:
         print(f"⚠️ Could not delete {collection}: {e}")
+

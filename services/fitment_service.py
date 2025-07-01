@@ -13,7 +13,6 @@ import re
 # Fast and small model for chunk scoring
 model = SentenceTransformer("BAAI/bge-small-en-v1.5")
 
-
 def score_fitment_logic(candidate_id: str):
     try:
         print(f"🔍 Input candidate_id: {candidate_id}")
@@ -22,6 +21,11 @@ def score_fitment_logic(candidate_id: str):
         if not candidate:
             print("❌ Candidate not found in MongoDB.")
             return None
+
+        # 🚨 NEW: Return cached fitment result if it already exists
+        if "results" in candidate:
+            print("✅ Existing fitment result found — returning cached result.")
+            return candidate["results"]
 
         role_id = candidate["applied_role_id"]
         resume_id = int(candidate_id.replace("CND-", ""))
@@ -38,7 +42,8 @@ def score_fitment_logic(candidate_id: str):
 
         print("✅ Vectors found – computing similarity...")
         sim_score = compute_cosine_similarity(resume_vector, jd_vector)
-        fitment_percent = round(sim_score * 100, 2)
+        fitment_percent = round((sim_score * 1.3 + 0.15) * 100, 2)  # boost mid-level similarities
+        fitment_percent = min(fitment_percent, 100.0)
 
         jd_doc = roles_collection.find_one({"role_id": role_id})
         if not jd_doc or "job_description" not in jd_doc:
@@ -66,7 +71,6 @@ def score_fitment_logic(candidate_id: str):
             **llm_analysis
         }
 
-        # ✅ Store in MongoDB under 'results'
         result_to_store = result.copy()
         result_to_store["scored_at"] = datetime.now()
 
@@ -81,7 +85,6 @@ def score_fitment_logic(candidate_id: str):
         print("❌ Error in score_fitment_logic:", e)
         return None
 
-
 def get_vector_by_id(collection, id):
     result = client.retrieve(
         collection_name=collection,
@@ -92,12 +95,10 @@ def get_vector_by_id(collection, id):
         return np.array(result[0].vector).reshape(1, -1)
     return None
 
-
 def compute_cosine_similarity(v1, v2):
     return float(cosine_similarity(v1, v2)[0][0])
 
-
-def extract_top_relevant_chunks(jd_text, resume_text, min_percent=0.2, min_coverage_chars=750):
+def extract_top_relevant_chunks(jd_text, resume_text, min_percent=0.15, min_coverage_chars=750):
     jd_vector = model.encode(jd_text).reshape(1, -1)
     resume_chunks = split_resume_into_chunks(resume_text)
 
@@ -144,7 +145,6 @@ def get_cleaned_fitment_analysis(jd_text, resume_text):
         print("❌ JSON parsing failed:", e)
         return empty_fitment_output()
 
-
 def clean_llm_gap_output(raw_output):
     def canonicalize(skill):
         return (
@@ -174,11 +174,9 @@ def clean_llm_gap_output(raw_output):
                 cleaned.append(skill)
         return sorted(cleaned)
 
-    # ✅ Top-level check
     if not raw_output or not isinstance(raw_output, dict):
         return empty_fitment_output()
 
-    # ✅ Defensive checks for nested keys
     gap_analysis = raw_output.get("gap_analysis", {})
     if not isinstance(gap_analysis, dict):
         return empty_fitment_output()
@@ -187,7 +185,6 @@ def clean_llm_gap_output(raw_output):
     if not isinstance(suggestions, dict):
         return empty_fitment_output()
 
-    # ✅ Safe extraction
     minor_clean = dedup_skills(gap_analysis.get("minor", []))
     major_raw = dedup_skills(gap_analysis.get("major", []))
     major_clean = [s for s in major_raw if canonicalize(s) not in map(canonicalize, minor_clean)]
@@ -213,7 +210,6 @@ def clean_llm_gap_output(raw_output):
             )
         }
     }
-
 
 def empty_fitment_output():
     return {

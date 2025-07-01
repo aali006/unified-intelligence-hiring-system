@@ -69,4 +69,3 @@ def delete_jd_vector(role_id):
         collection_name=JD_COLLECTION,
         points_selector=PointIdsList(points=[role_id])
     )
-
