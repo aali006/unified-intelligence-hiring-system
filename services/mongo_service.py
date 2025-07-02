@@ -1,4 +1,5 @@
 from pymongo import MongoClient
+from pymongo.errors import DuplicateKeyError
 
 # Initialize MongoDB client and database
 client = MongoClient("mongodb://localhost:27017/")
@@ -7,6 +8,11 @@ db = client["test-positions"]
 # Collections
 roles_collection = db["roles"]
 candidates_collection = db["candidates"]
+interviewers_collection = db["interviewers"]
+
+# Create unique indexes (run once on startup; harmless if already exists)
+candidates_collection.create_index("candidate_id", unique=True)
+interviewers_collection.create_index("interviewer_id", unique=True)
 
 def get_role_id_by_name(role_name):
     """Fetch role_id from roles collection by role name."""
@@ -27,23 +33,25 @@ def store_job_description(role_id, role, positions, jd_text, filename):
 
 def store_candidate(candidate_id, name, applied_role, applied_role_id, resume_text, file_bytes, stored_file_name,
                     email, github, location, phone, timestamp, skills_present):
-
-    result = candidates_collection.insert_one({
-        "candidate_id": candidate_id,
-        "name": name,
-        "applied_role": applied_role,
-        "applied_role_id": applied_role_id,
-        "datetime": timestamp,
-        "resume_text": resume_text,
-        "email": email,
-        "github": github,
-        "location": location,
-        "phone": phone,
-        "skills_present": skills_present,
-        "file_name": stored_file_name,
-        "resume_file": file_bytes
-    })
-    return str(result.inserted_id)
+    try:
+        result = candidates_collection.insert_one({
+            "candidate_id": candidate_id,
+            "name": name,
+            "applied_role": applied_role,
+            "applied_role_id": applied_role_id,
+            "datetime": timestamp,
+            "resume_text": resume_text,
+            "email": email,
+            "github": github,
+            "location": location,
+            "phone": phone,
+            "skills_present": skills_present,
+            "file_name": stored_file_name,
+            "resume_file": file_bytes
+        })
+        return str(result.inserted_id)
+    except DuplicateKeyError:
+        return None
 
 def get_all_roles():
     """Return all job roles from the DB."""
@@ -78,3 +86,48 @@ def delete_candidate(candidate_id):
     """Delete a candidate by their ID."""
     result = candidates_collection.delete_one({"candidate_id": candidate_id})
     return result.deleted_count
+
+def store_interviewer(interviewer_id, name, email, department, joined_on):
+    """Insert a new interviewer into MongoDB."""
+    try:
+        result = interviewers_collection.insert_one({
+            "interviewer_id": interviewer_id,
+            "name": name,
+            "email": email,
+            "department": department,
+            "joined_on": joined_on
+        })
+        return str(result.inserted_id)
+    except DuplicateKeyError:
+        return None
+
+def get_all_interviewers():
+    """Return all interviewers from the DB."""
+    return list(interviewers_collection.find({}, {"_id": 0}))
+
+
+
+def add_interview_to_candidate(candidate_id, interview_data):
+    """Push interview details to a candidate's interviews array."""
+    result = candidates_collection.update_one(
+        {"candidate_id": candidate_id},
+        {"$push": {"interviews": interview_data}}
+    )
+    return result.modified_count
+
+
+
+def add_interview_to_interviewer(interviewer_id, log_data):
+    """Push interview summary to an interviewer's interviews_taken array."""
+    result = interviewers_collection.update_one(
+        {"interviewer_id": interviewer_id},
+        {"$push": {"interviews_taken": log_data}}
+    )
+    return result.modified_count
+
+
+def get_candidate_interviews(candidate_id):
+    """Retrieve interviews array for a given candidate."""
+    candidate = candidates_collection.find_one({"candidate_id": candidate_id}, {"_id": 0, "interviews": 1, "interview_aggregate": 1})
+    return candidate
+

@@ -8,7 +8,9 @@ from services.mongo_service import (
     store_candidate,
     get_role_id_by_name, update_candidate, update_role, delete_role, delete_candidate,
     get_all_roles,
-    get_all_candidates
+    get_all_candidates,
+    store_interviewer, get_all_interviewers, add_interview_to_candidate, add_interview_to_interviewer,
+    get_candidate_interviews
 )
 
 from services.qdrant_service import store_jd_embedding, store_resume_embedding, delete_resume_vector, delete_jd_vector
@@ -25,6 +27,9 @@ from services.resume_utils import (
     extract_location_with_spacy  # ✅ NEW
 )
 from services.fitment_service import score_fitment_logic
+
+from services.ollama_utils import build_aggregator_prompt, call_fitment_llm
+
 import re
 
 app = FastAPI()
@@ -188,6 +193,9 @@ async def add_candidate(
         skills_present=skills_present
     )
 
+    if mongo_status is None:
+        raise HTTPException(status_code=409, detail=f"Candidate ID '{candidate_id_str}' already exists.")
+
     qdrant_status = store_resume_embedding(candidate_id_num, resume_text, name, applied_role)
 
     return {
@@ -226,3 +234,163 @@ async def score_fitment(candidate_id: str):
         return result
     else:
         raise HTTPException(status_code=404, detail="Candidate or Role not found.")
+
+
+
+@app.post("/add-interviewer/", status_code=201)
+async def add_interviewer(
+    interviewer_id: str = Form(...),
+    name: str = Form(...),
+    email: str = Form(...),
+    department: str = Form(...)
+):
+    from datetime import datetime
+    joined_on = datetime.now()
+    mongo_status = store_interviewer(interviewer_id, name, email, department, joined_on)
+    if mongo_status is None:
+        raise HTTPException(status_code=409, detail=f"Interviewer ID '{interviewer_id}' already exists.")
+    return {
+        "interviewer_id": interviewer_id,
+        "mongo_status": mongo_status
+    }
+
+
+@app.get("/get-interviewers/")
+async def list_interviewers():
+    return get_all_interviewers()
+
+
+
+@app.post("/add-interview/", status_code=201)
+async def add_interview(
+    candidate_id: str = Form(...),
+    round_num: int = Form(...),  # renamed from 'round' to avoid shadowing built-in
+    interviewer_id: str = Form(...),
+    communication: int = Form(...),
+    problem_solving: int = Form(...),
+    domain_knowledge: int = Form(...),
+    comments: str = Form(...)
+):
+    from datetime import datetime
+    now = datetime.now()
+
+    # Ratings dictionary
+    ratings = {
+        "communication": communication,
+        "problem_solving": problem_solving,
+        "domain_knowledge": domain_knowledge
+    }
+
+    # Validate rating ranges
+    for rating, value in ratings.items():
+        if not 1 <= value <= 5:
+            raise HTTPException(status_code=400, detail=f"Rating '{rating}' must be between 1 and 5.")
+
+    # Prepare detailed interview record for candidate
+    interview_data = {
+        "round": round_num,
+        "interviewer_id": interviewer_id,
+        "ratings": ratings,
+        "comments": comments,
+        "datetime": now
+    }
+
+    candidate_updated = add_interview_to_candidate(candidate_id, interview_data)
+    if candidate_updated == 0:
+        raise HTTPException(status_code=404, detail=f"Candidate ID '{candidate_id}' not found.")
+
+    # Prepare lightweight log for interviewer
+    interview_log = {
+        "candidate_id": candidate_id,
+        "round": round_num,
+        "datetime": now
+    }
+
+    interviewer_updated = add_interview_to_interviewer(interviewer_id, interview_log)
+    if interviewer_updated == 0:
+        raise HTTPException(status_code=404, detail=f"Interviewer ID '{interviewer_id}' not found.")
+
+    return {
+        "candidate_id": candidate_id,
+        "round": round_num,
+        "interviewer_id": interviewer_id,
+        "timestamp": now.isoformat(),
+        "message": "Interview successfully recorded."
+    }
+
+
+
+
+@app.get("/aggregate-interviews/{candidate_id}")
+async def aggregate_interviews(candidate_id: str):
+    from datetime import datetime
+    import json, re
+    from services.ollama_utils import build_aggregator_prompt, call_fitment_llm
+    from services.mongo_service import get_candidate_interviews, candidates_collection
+
+    # Fetch interviews & existing aggregate
+    candidate = get_candidate_interviews(candidate_id)
+
+    if not candidate or "interviews" not in candidate:
+        raise HTTPException(status_code=404, detail=f"No interviews found for candidate ID '{candidate_id}'.")
+
+    # Return cached aggregate if already exists
+    if "interview_aggregate" in candidate and candidate["interview_aggregate"]:
+        return candidate["interview_aggregate"]
+
+    interviews = candidate["interviews"]
+
+    # Check both rounds exist
+    rounds = {interview["round"] for interview in interviews}
+    if not {1, 2}.issubset(rounds):
+        raise HTTPException(status_code=400, detail="Candidate must complete both rounds before aggregation.")
+
+    # Get round 1 and round 2 interview details
+    round1 = next((i for i in interviews if i["round"] == 1), None)
+    round2 = next((i for i in interviews if i["round"] == 2), None)
+
+    if not round1 or not round2:
+        raise HTTPException(status_code=400, detail="Both round 1 and round 2 must be completed for aggregation.")
+
+    # Compute average scores
+    average_scores = {}
+    categories = ["communication", "problem_solving", "domain_knowledge"]
+    for category in categories:
+        avg = (round1["ratings"][category] + round2["ratings"][category]) / 2.0
+        average_scores[category] = round(avg, 2)
+    overall_avg = round(sum(average_scores.values()) / len(categories), 2)
+    average_scores["overall_average"] = overall_avg
+
+    # Combine comments
+    combined_comments = f"Round 1 Comments: {round1['comments']}\nRound 2 Comments: {round2['comments']}"
+
+    # Build prompt with helper function + call LLM
+    prompt = build_aggregator_prompt(average_scores, combined_comments)
+    raw_output = call_fitment_llm(prompt)
+
+    # Parse LLM JSON output
+    json_match = re.search(r"\{[\s\S]*\}", raw_output)
+    if not json_match:
+        raise HTTPException(status_code=500, detail="LLM did not return valid JSON.")
+
+    try:
+        parsed = json.loads(json_match.group())
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to parse LLM JSON output.")
+
+    # Build and store aggregate result
+    aggregate_result = {
+        "average_scores": average_scores,
+        "verdict": parsed.get("verdict", "Unknown"),
+        "strengths": parsed.get("strengths", []),
+        "weaknesses": parsed.get("weaknesses", []),
+        "combined_comments": combined_comments,
+        "aggregated_at": datetime.now()
+    }
+
+    candidates_collection.update_one(
+        {"candidate_id": candidate_id},
+        {"$set": {"interview_aggregate": aggregate_result}}
+    )
+
+    return aggregate_result

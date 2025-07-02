@@ -57,3 +57,28 @@ JD:
 Resume:
 {resume_text}
 """.strip()
+
+
+def build_aggregator_prompt(average_scores, combined_comments):
+    """Constructs the LLM prompt for interview feedback aggregation."""
+    return f"""
+You are an interview feedback aggregator AI.
+
+Candidate has average scores:
+- Communication: {average_scores['communication']}
+- Problem Solving: {average_scores['problem_solving']}
+- Domain Knowledge: {average_scores['domain_knowledge']}
+- Overall Average: {average_scores['overall_average']}
+
+Combined interview comments:
+{combined_comments}
+
+Based on this, provide JSON with:
+{{
+  "verdict": "Strong Hire/Hire/No Hire",
+  "strengths": ["List key strengths"],
+  "weaknesses": ["List key weaknesses"]
+}}
+
+Return only the JSON.
+""".strip()
