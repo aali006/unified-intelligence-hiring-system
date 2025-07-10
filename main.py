@@ -1,36 +1,51 @@
-from fastapi import FastAPI, UploadFile, Form, HTTPException, Body
-from typing import Optional
+import json
+import re
 from datetime import datetime
+from typing import Optional
 
-# Job-related services
+from fastapi import FastAPI, UploadFile, Form, HTTPException, Body
+
 from services.mongo_service import (
     store_job_description,
     store_candidate,
-    get_role_id_by_name, update_candidate, update_role, delete_role, delete_candidate,
+    get_role_id_by_name,
+    update_candidate,
+    update_role,
+    delete_role,
+    delete_candidate,
     get_all_roles,
     get_all_candidates,
-    store_interviewer, get_all_interviewers, add_interview_to_candidate, add_interview_to_interviewer,
-    get_candidate_interviews
+    store_interviewer,
+    get_all_interviewers,
+    add_interview_to_candidate,
+    add_interview_to_interviewer,
+    get_candidate_interviews,
+    candidates_collection
 )
 
-from services.qdrant_service import store_jd_embedding, store_resume_embedding, delete_resume_vector, delete_jd_vector
+from services.qdrant_service import (
+    store_jd_embedding,
+    store_resume_embedding,
+    delete_resume_vector,
+    delete_jd_vector
+)
+
 from services.jd_parser import extract_text_from_pdf, extract_text_from_docx
+
 from services.resume_utils import (
     extract_text_from_resume,
-    generate_candidate_id,
     generate_numeric_id,
-    extract_email,
-    extract_github,
-    extract_phone,
-    extract_skills_section,
-    extract_contact_block_for_location,
-    extract_location_with_spacy  # ✅ NEW
+    extract_skills_with_llm,
+    extract_all_contact_metadata_from_context
 )
+
 from services.fitment_service import score_fitment_logic
 
-from services.ollama_utils import build_aggregator_prompt, call_fitment_llm
+from services.ollama_utils import (
+    build_aggregator_prompt,
+    call_fitment_llm
+)
 
-import re
 
 app = FastAPI()
 
@@ -114,65 +129,14 @@ async def add_candidate(
     resume_text = extract_text_from_resume(file_bytes, resume_file.filename)
     print("🔎 Extracted resume text preview:\n", resume_text[:3000])
 
-    # Extract and refine skills
-    raw_skills_text = extract_skills_section(resume_text)
-    print("🔎 Raw skills section text:\n", raw_skills_text[:1000])
-    lines = raw_skills_text.strip().split("\n")
-    filtered_skills = []
-    last_line_ended_with_comma = False
+    # ✅ Only extract metadata using LLM (no skills/education)
+    metadata = extract_all_contact_metadata_from_context(resume_text)
+    email = metadata.get("email", "")
+    github = metadata.get("github", "")
+    phone = metadata.get("phone", "")
+    location = metadata.get("location", "")
 
-    for idx, line in enumerate(lines):
-        stripped = line.strip()
-
-        if idx == 0:
-            continue
-
-        if (
-            stripped
-            and (
-                stripped.startswith(("•", "-", "◦", "·"))
-                or ":" in stripped
-                or stripped.count(",") >= 1
-            )
-            and not re.match(
-                r"(?i)(organized|managed|developed|led|worked|responsibilities|designation|president)",
-                stripped,
-            )
-        ):
-            filtered_skills.append(stripped)
-            last_line_ended_with_comma = stripped.endswith((",", ";"))
-        elif last_line_ended_with_comma and stripped:
-            filtered_skills.append(stripped)
-            last_line_ended_with_comma = stripped.endswith((",", ";"))
-        elif (
-            stripped
-            and len(stripped.split()) == 1
-            and stripped.endswith((".", ";", ","))
-        ):
-            filtered_skills.append(stripped)
-        elif stripped:
-            words = stripped.split()
-            cleaned_words = [re.sub(r'\W+$', '', w) for w in words]
-            long_lowercase_words = [w for w in cleaned_words if w.islower() and len(w) >= 6]
-            if long_lowercase_words:
-                filtered_skills.append(stripped)
-                last_line_ended_with_comma = stripped.endswith((",", ";"))
-            else:
-                break
-        else:
-            break
-
-    skills_present = filtered_skills
-    print("✅ Final skills_present:", skills_present)
-
-    # ✅ Regex + spaCy for location
-    email = extract_email(resume_text)
-    github = extract_github(resume_text)
-    phone = extract_phone(resume_text)
-
-    contact_block = extract_contact_block_for_location(resume_text)
-    location = extract_location_with_spacy(contact_block)
-    print("✅ spaCy-extracted location:", location)
+    print("📬 Extracted metadata:", metadata)
 
     ext = resume_file.filename.split(".")[-1]
     stored_file_name = f"{name.replace(' ', '_')}_{applied_role.replace(' ', '_')}_{candidate_id_str}.{ext}"
@@ -189,8 +153,7 @@ async def add_candidate(
         github=github,
         location=location,
         phone=phone,
-        timestamp=datetime.now(),
-        skills_present=skills_present
+        timestamp=datetime.now()
     )
 
     if mongo_status is None:
@@ -323,10 +286,6 @@ async def add_interview(
 
 @app.get("/aggregate-interviews/{candidate_id}")
 async def aggregate_interviews(candidate_id: str):
-    from datetime import datetime
-    import json, re
-    from services.ollama_utils import build_aggregator_prompt, call_fitment_llm
-    from services.mongo_service import get_candidate_interviews, candidates_collection
 
     # Fetch interviews & existing aggregate
     candidate = get_candidate_interviews(candidate_id)
@@ -366,7 +325,7 @@ async def aggregate_interviews(candidate_id: str):
 
     # Build prompt with helper function + call LLM
     prompt = build_aggregator_prompt(average_scores, combined_comments)
-    raw_output = call_fitment_llm(prompt)
+    raw_output = call_fitment_llm(prompt, max_tokens=300)
 
     # Parse LLM JSON output
     json_match = re.search(r"\{[\s\S]*\}", raw_output)

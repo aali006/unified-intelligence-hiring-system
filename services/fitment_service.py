@@ -58,6 +58,7 @@ def score_fitment_logic(candidate_id: str):
 
         focused_resume = extract_top_relevant_chunks(jd_text, resume_text)
         print("🧩 Selected resume chunks (preview):\n", focused_resume[:500], "\n...trimmed")
+        print("📜 Final chunked resume length:", len(focused_resume))
 
         llm_analysis = get_cleaned_fitment_analysis(jd_text, focused_resume)
 
@@ -98,7 +99,7 @@ def get_vector_by_id(collection, id):
 def compute_cosine_similarity(v1, v2):
     return float(cosine_similarity(v1, v2)[0][0])
 
-def extract_top_relevant_chunks(jd_text, resume_text, min_percent=0.15, min_coverage_chars=750):
+def extract_top_relevant_chunks(jd_text, resume_text, min_percent=0.20, min_coverage_chars=1000):
     jd_vector = model.encode(jd_text).reshape(1, -1)
     resume_chunks = split_resume_into_chunks(resume_text)
 
@@ -124,13 +125,12 @@ def extract_top_relevant_chunks(jd_text, resume_text, min_percent=0.15, min_cove
 
     return "\n\n".join(selected)
 
-
 def get_cleaned_fitment_analysis(jd_text, resume_text):
     prompt = build_prompt(jd_text, resume_text)
     print("📦 Prompt preview:\n", prompt[:500], "\n...trimmed")
     print("📏 Prompt length (chars):", len(prompt))
 
-    raw_output = call_fitment_llm(prompt)
+    raw_output = call_fitment_llm(prompt, max_tokens=500)
     print("🧠 Raw model output preview:\n", raw_output[:1000])
 
     json_match = re.search(r"\{[\s\S]*\}", raw_output)
@@ -185,6 +185,8 @@ def clean_llm_gap_output(raw_output):
     if not isinstance(suggestions, dict):
         return empty_fitment_output()
 
+    matched_skills = dedup_skills(raw_output.get("matched_skills", []))
+
     minor_clean = dedup_skills(gap_analysis.get("minor", []))
     major_raw = dedup_skills(gap_analysis.get("major", []))
     major_clean = [s for s in major_raw if canonicalize(s) not in map(canonicalize, minor_clean)]
@@ -208,7 +210,8 @@ def clean_llm_gap_output(raw_output):
                 if isinstance(suggestions.get("learning_resources", []), list)
                 else []
             )
-        }
+        },
+        "matched_skills": matched_skills
     }
 
 def empty_fitment_output():
@@ -218,5 +221,6 @@ def empty_fitment_output():
             "resume_improvements": "",
             "skills_to_add": [],
             "learning_resources": []
-        }
+        },
+        "matched_skills": []
     }

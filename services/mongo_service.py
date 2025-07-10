@@ -32,7 +32,7 @@ def store_job_description(role_id, role, positions, jd_text, filename):
     return str(result.inserted_id)
 
 def store_candidate(candidate_id, name, applied_role, applied_role_id, resume_text, file_bytes, stored_file_name,
-                    email, github, location, phone, timestamp, skills_present):
+                    email, github, location, phone, timestamp):
     try:
         result = candidates_collection.insert_one({
             "candidate_id": candidate_id,
@@ -45,7 +45,6 @@ def store_candidate(candidate_id, name, applied_role, applied_role_id, resume_te
             "github": github,
             "location": location,
             "phone": phone,
-            "skills_present": skills_present,
             "file_name": stored_file_name,
             "resume_file": file_bytes
         })

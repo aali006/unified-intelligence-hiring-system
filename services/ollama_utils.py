@@ -2,83 +2,90 @@ import requests
 import json
 import re
 
-OLLAMA_BASE_URL = "http://localhost:11434/api/generate"
+OLLAMA_BASE_URL = "https://6550f83a1e3f.ngrok-free.app/generate"
+
 MODEL = "mistral"  # Local LLM for fitment scoring
 
-def call_fitment_llm(prompt: str) -> str:
-    """Calls the local LLM with a structured prompt and returns raw text output."""
+def call_fitment_llm(prompt: str, max_tokens: int = 100) -> str:
+    """Calls local Ollama LLM via /generate and returns the raw text response."""
     try:
         response = requests.post(
             OLLAMA_BASE_URL,
-            json={"model": MODEL, "prompt": prompt, "stream": False},
+            json={
+                "model": MODEL,
+                "prompt": prompt,
+                "max_tokens": max_tokens,  # <-- control here
+                "stream": False
+            },
             timeout=300
         )
         json_data = response.json()
-        response_data = json_data.get("response", "")
-        return "".join(response_data) if isinstance(response_data, list) else response_data
+        raw_response = json_data.get("response", "")
+        return raw_response
     except Exception as e:
         print("❌ Fitment LLM call failed:", e)
         return ""
 
 def build_prompt(jd_text: str, resume_text: str) -> str:
-    """Builds a structured prompt for gap analysis with minimal ambiguity and no confusing examples."""
+    """Builds a structured prompt with explicit delimiters for reliable raw LLM output."""
     return f"""
 You are a smart hiring intelligence assistant.
 
-Your task is to analyze a candidate's resume in the context of a job description (JD) and return a JSON object with the following structure:
+Task:
+1. Compare the candidate's resume with the provided job description (JD).
+2. Identify missing or unclear skills relevant to the JD.
+3. Suggest resume improvements, new skills to learn, and useful learning resources.
+4. Also identify the matched skills — skills the candidate already has that are relevant to the JD.
 
-{{
-  "gap_analysis": {{
-    "minor": [List of missing minor skills relevant to the JD],
-    "major": [List of missing major skills relevant to the JD]
-  }},
-  "suggestions": {{
-    "resume_improvements": "Give 2-3 concrete suggestions to improve alignment with the JD. Reference missing tools, underexplored skills, or relevant experiences that could be emphasized.",
-    "skills_to_add": [List of suggested additional skills to learn],
-    "learning_resources": [
-      {{
-        "title": "Resource Title",
-        "path": "/resources/local-guide.pdf"
-      }}
-    ]
-  }}
-}}
+Return only a valid JSON object with these top-level keys:
+- "gap_analysis" → with keys "minor" and "major" (both lists of missing skills)
+- "suggestions" → with keys:
+    - "resume_improvements" (string)
+    - "skills_to_add" (list)
+    - "learning_resources" (list)
+- "matched_skills" (list of relevant skills the candidate already has)
 
-Guidelines:
-- Avoid hallucinating missing skills if they are already mentioned with similar terms in the resume. For example, if the resume mentions 'Generative AI', do not report 'Generative AI tools' as missing.
-- Group related or synonymous skills and avoid listing redundant gaps.
-- Only include skills or tools truly absent or unclear in the resume.
-- Keep lists between 2–5 items when applicable; use empty lists if there are no gaps.
-- Return valid JSON only — no markdown, no headers, no explanations outside the JSON.
+Do not include explanations, markdown, or any text outside the JSON.
 
-JD:
+=== END OF INSTRUCTIONS ===
+
+=== START JD ===
 {jd_text}
+=== END JD ===
 
-Resume:
+=== START RESUME ===
 {resume_text}
+=== END RESUME ===
+
+Now respond below with ONLY the JSON object:
 """.strip()
 
-
 def build_aggregator_prompt(average_scores, combined_comments):
-    """Constructs the LLM prompt for interview feedback aggregation."""
+    """Constructs a clear, structured prompt with explicit delimiters for reliable raw LLM output."""
     return f"""
 You are an interview feedback aggregator AI.
 
-Candidate has average scores:
-- Communication: {average_scores['communication']}
-- Problem Solving: {average_scores['problem_solving']}
-- Domain Knowledge: {average_scores['domain_knowledge']}
-- Overall Average: {average_scores['overall_average']}
+Task:
+- Review the candidate's average interview scores and combined comments.
+- Determine an overall verdict: Strong Hire, Hire, or No Hire.
+- Identify key strengths and weaknesses based on the scores and comments.
 
-Combined interview comments:
+Return only a valid JSON object with the keys: "verdict", "strengths", and "weaknesses".
+
+Do not include explanations, markdown, or any text outside the JSON.
+
+=== END OF INSTRUCTIONS ===
+
+=== START SCORES ===
+Communication: {average_scores['communication']}
+Problem Solving: {average_scores['problem_solving']}
+Domain Knowledge: {average_scores['domain_knowledge']}
+Overall Average: {average_scores['overall_average']}
+=== END SCORES ===
+
+=== START COMMENTS ===
 {combined_comments}
+=== END COMMENTS ===
 
-Based on this, provide JSON with:
-{{
-  "verdict": "Strong Hire/Hire/No Hire",
-  "strengths": ["List key strengths"],
-  "weaknesses": ["List key weaknesses"]
-}}
-
-Return only the JSON.
+Now respond below with ONLY the JSON object:
 """.strip()

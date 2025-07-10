@@ -1,3 +1,4 @@
+import json
 import random
 import string
 import tempfile
@@ -6,17 +7,29 @@ import pdfplumber
 import io
 import fitz  # PyMuPDF
 import os
-import spacy
 import re
+from services.ollama_utils import call_fitment_llm
 
-# Load spaCy model globally to avoid reloading on each call
-nlp = spacy.load("en_core_web_sm")
-
-def generate_candidate_id():
-    return "CND-" + ''.join(random.choices(string.digits, k=4))
 
 def generate_numeric_id():
     return int(''.join(random.choices(string.digits, k=4)))
+
+def extract_context_lines(text, match):
+    """
+    Given full text and a regex match object, returns up to one line above and below the matched line.
+    """
+    lines = text.splitlines()
+    match_line_idx = None
+    for i, line in enumerate(lines):
+        if match.group() in line:
+            match_line_idx = i
+            break
+    if match_line_idx is None:
+        return ""
+    start = max(0, match_line_idx - 1)
+    end = min(len(lines), match_line_idx + 2)
+    context = "\n".join(lines[start:end]).strip()
+    return context
 
 def extract_text_from_resume(file_bytes, filename):
     if filename.endswith(".pdf"):
@@ -41,83 +54,110 @@ def extract_text_from_resume(file_bytes, filename):
     else:
         return ""
 
-def extract_email(text):
-    matches = re.findall(r'\b[\w\.\+-]+@[\w\.-]+\.\w{2,}\b', text)
-    return matches[0] if matches else ""
+# ✅ Unified contact extraction
+def extract_all_contact_metadata_from_context(text: str) -> dict:
+    from services.ollama_utils import call_fitment_llm
+    import json
+    from collections import OrderedDict
 
-def extract_github(text):
-    match = re.search(r'(https?:\/\/)?(www\.)?github\.com\/[A-Za-z0-9_-]+(?!\/)', text)
-    return match.group().replace("www.", "") if match else ""
+    def extract_context_lines(text, match):
+        lines = text.splitlines()
+        match_line_idx = None
+        for i, line in enumerate(lines):
+            if match and match.group() in line:
+                match_line_idx = i
+                break
+        if match_line_idx is None:
+            return ""
+        start = max(0, match_line_idx - 1)
+        end = min(len(lines), match_line_idx + 2)
+        return "\n".join(lines[start:end]).strip()
 
-def extract_phone(text):
-    match = re.search(
-        r'(?:\+91[\s-]*)?'
-        r'(?:0)?'
-        r'[\s-]*'
-        r'('
-        r'(?:[6-9]\d{9})'
-        r'|(?:[6-9]\d{2}[\s-]?\d{3}[\s-]?\d{4})'
-        r'|(?:[6-9]\d{4}[\s-]?\d{5})'
-        r')',
+    # Regex matches
+    email_match = re.search(r'\b[\w\.\+-]+@[\w\.-]+\.\w{2,}\b', text)
+    phone_match = re.search(
+        r'(?:\+91[\s-]*)?(?:0)?[\s-]*((?:[6-9]\d{9})|(?:[6-9]\d{2}[\s-]?\d{3}[\s-]?\d{4})|(?:[6-9]\d{4}[\s-]?\d{5}))',
         text
     )
-    if match:
-        digits = re.sub(r'\D', '', match.group(1))
-        return f"+91{digits}" if len(digits) == 10 else digits
-    return ""
+    github_match = re.search(r'(https?:\/\/)?(www\.)?github\.com\/[A-Za-z0-9_-]+(?!\/)', text)
 
-def clean_location_output(location_str):
-    if not location_str:
-        return ""
-    if "empty string" in location_str.lower() or "no city" in location_str.lower():
-        return ""
-    return location_str.strip()
+    # Context extraction
+    email_context = extract_context_lines(text, email_match) if email_match else ""
+    phone_context = extract_context_lines(text, phone_match) if phone_match else ""
+    github_context = extract_context_lines(text, github_match) if github_match else ""
 
-def extract_contact_block_for_location(resume_text):
-    """
-    Extracts lines around contact details, expands ±5 lines, stops at section headings, hard-cap at 10 lines.
-    """
-    lines = resume_text.split("\n")
-    indicators = []
-    for idx, line in enumerate(lines):
-        line_lower = line.lower()
-        if "@" in line_lower or "linkedin.com" in line_lower or re.search(r'\+?\d[\d\s-]{7,}', line_lower):
-            indicators.append(idx)
+    # Location context from contact block
+    def extract_contact_block_for_location(resume_text):
+        lines = resume_text.split("\n")
+        indicators = []
+        for idx, line in enumerate(lines):
+            line_lower = line.lower()
+            if "@" in line_lower or "linkedin.com" in line_lower or re.search(r'\+?\d[\d\s-]{7,}', line_lower):
+                indicators.append(idx)
+        if not indicators:
+            return "\n".join(lines[:10])
+        selected_lines = set()
+        section_keywords = ["skills", "experience", "education", "projects", "certifications", "summary"]
+        for idx in indicators:
+            for i in range(max(0, idx - 5), min(len(lines), idx + 6)):
+                if any(lines[i].strip().lower().startswith(k) for k in section_keywords):
+                    break
+                selected_lines.add(i)
+        combined_lines = [lines[i] for i in sorted(selected_lines)]
+        return "\n".join(combined_lines[:10]) if combined_lines else ""
 
-    if not indicators:
-        return "\n".join(lines[:10])
+    location_context = extract_contact_block_for_location(text)
 
-    selected_lines = set()
-    section_keywords = [
-        "skills", "experience", "education", "achievements", "leadership",
-        "projects", "profile", "objective", "summary", "certifications",
-        "internship", "training", "professional summary"
-    ]
+    # Combine and deduplicate
+    raw_lines = "\n".join(filter(None, [
+        email_context,
+        phone_context,
+        github_context,
+        location_context
+    ])).splitlines()
+    unique_lines = list(OrderedDict.fromkeys([line.strip() for line in raw_lines if line.strip()]))
+    combined_context = "\n".join(unique_lines[:15])  # Cap at 15 clean lines
 
-    for idx in indicators:
-        start = max(0, idx - 5)
-        end = min(len(lines), idx + 6)
-        for i in range(start, end):
-            line_text = lines[i].strip().lower()
-            if any(line_text.startswith(k) for k in section_keywords):
-                print(f"🚨 Stopping contact block collection early at line {i}: '{lines[i]}'")
-                combined_lines = [lines[j] for j in sorted(selected_lines)]
-                if len(combined_lines) > 10:
-                    combined_lines = combined_lines[:10]
-                return "\n".join(combined_lines)
-            selected_lines.add(i)
+    print("🧠 Extracted Contact Context Being Sent to LLM:\n", combined_context[:2000])
 
-    combined_lines = [lines[i] for i in sorted(selected_lines)]
-    if len(combined_lines) > 10:
-        combined_lines = combined_lines[:10]
+    # Updated prompt
+    prompt = f"""
+You are an expert at reading resumes and extracting structured metadata.
 
-    keywords = ["based in", "currently in", "location", "lives in", "from", "residing", "city"]
-    keyword_lines = [line for line in combined_lines if any(kw in line.lower() for kw in keywords)]
+Extract the following data of the candidate if identifiable from the text:
+- email
+- phone number
+- GitHub profile URL
+- location (city-level only)
 
-    if keyword_lines:
-        return "\n".join(keyword_lines)
-    else:
-        return "\n".join(combined_lines)
+If something is not explicitly present, leave it as an empty string.
+
+Resumes often list these details in the first few lines or together.
+
+Return only a valid JSON object in this format:
+{{
+  "email": "",
+  "phone": "",
+  "github": "",
+  "location": ""
+}}
+
+Resume Contact Context:
+\"\"\"
+{combined_context}
+\"\"\"
+""".strip()
+
+    try:
+        raw = call_fitment_llm(prompt, max_tokens=100)
+        print("🧾 Raw LLM response:\n", raw.strip()[:1000])
+        json_match = re.search(r"\{[\s\S]*?\}", raw)
+        if json_match:
+            return json.loads(json_match.group())
+    except Exception as e:
+        print("❌ Failed to parse LLM metadata output:", e)
+
+    return {"email": "", "phone": "", "github": "", "location": ""}
 
 def normalize_text(text):
     text = re.sub(r"\r\n?", "\n", text)
@@ -179,16 +219,54 @@ def extract_skills_section(text):
     print("⚠️ No skills section found.")
     return ""
 
+def extract_skills_with_llm(resume_text):
+    """
+    Calls LLM to extract explicit skills from skills/work sections,
+    and highest education level + degree separately.
+    """
+    prompt = f"""
+You are a resume parsing assistant.
 
-def extract_location_with_spacy(contact_text):
-    """
-    Uses spaCy NER to extract a probable city/location from contact info block.
-    Prioritizes first GPE entity (Geo-Political Entity).
-    """
-    doc = nlp(contact_text)
-    for ent in doc.ents:
-        if ent.label_ == "GPE":
-            print(f"🏙️ Found location with spaCy: {ent.text}")
-            return ent.text.strip()
-    print("⚠️ No location detected with spaCy.")
-    return ""
+Task:
+- From the resume text below:
+  - Extract all technical and non-technical skills the candidate explicitly mentions in skills sections or work experience/project descriptions.
+  - Do NOT include skills implied from education degrees alone if unrelated.
+  - Additionally, identify the candidate's highest education, returning:
+    - education level (e.g., High School, Undergraduate, Graduate, Master’s, PhD).
+    - degree/major title (e.g., B.Tech in Mechanical Engineering).
+
+Return only a valid JSON object with two keys:
+- "skills": an array of unique skills.
+- "education": an object with keys "level" and "degree".
+
+Do not include explanations, markdown, or any text outside the JSON.
+
+=== START RESUME ===
+{resume_text}
+=== END RESUME ===
+
+Now respond below with ONLY the JSON object:
+""".strip()
+
+    raw = call_fitment_llm(prompt)
+    try:
+        json_match = re.search(r"\{[\s\S]*\}", raw)
+        if json_match:
+            parsed = json.loads(json_match.group())
+            skills = sorted(list(set(parsed.get("skills", [])))) if isinstance(parsed.get("skills"), list) else []
+            education = parsed.get("education", {})
+            if not isinstance(education, dict):
+                education = {"level": "", "degree": ""}
+            return {
+                "skills": skills,
+                "education": {
+                    "level": education.get("level", ""),
+                    "degree": education.get("degree", "")
+                }
+            }
+    except Exception as e:
+        print("❌ Failed to parse skills + education JSON:", e)
+    return {
+        "skills": [],
+        "education": {"level": "", "degree": ""}
+    }
