@@ -2,7 +2,7 @@ import requests
 import json
 import re
 
-OLLAMA_BASE_URL = "https://6550f83a1e3f.ngrok-free.app/generate"
+OLLAMA_BASE_URL = "https://1f57bff129d4.ngrok-free.app/generate"
 
 MODEL = "mistral"  # Local LLM for fitment scoring
 
@@ -27,27 +27,31 @@ def call_fitment_llm(prompt: str, max_tokens: int = 100) -> str:
         return ""
 
 def build_prompt(jd_text: str, resume_text: str) -> str:
-    """Builds a structured prompt with explicit delimiters for reliable raw LLM output."""
+    """Builds a structured prompt with explicit delimiters and context-aware matching."""
     return f"""
-You are a smart hiring intelligence assistant.
+You are a hiring intelligence assistant.
 
 Task:
-1. Compare the candidate's resume with the provided job description (JD).
-2. Identify missing or unclear skills relevant to the JD.
-3. Suggest resume improvements, new skills to learn, and useful learning resources.
-4. Also identify the matched skills — skills the candidate already has that are relevant to the JD.
+1. Compare the candidate's resume with the job description (JD).
+2. Treat skills mentioned not only in the 'Skills' section, but also in 'Projects', 'Work Experience', or 'Positions of Responsibility' as valid evidence of the candidate possessing those skills.
+3. Identify any missing or unclear skills that are genuinely not supported anywhere in the resume.
+4. Suggest resume improvements, clearly indicating the specific project, role, or section where the improvement should be made.
+5. Suggest new skills to learn and relevant learning resources.
+6. Identify the matched skills — i.e., skills already present in the resume that match the JD.
 
-Return only a valid JSON object with these top-level keys:
-- "gap_analysis" → with keys "minor" and "major" (both lists of missing skills)
-- "suggestions" → with keys:
-    - "resume_improvements" (string)
-    - "skills_to_add" (list)
-    - "learning_resources" (list)
-- "matched_skills" (list of relevant skills the candidate already has)
+Output Rules:
+- If a skill is already mentioned anywhere in the resume (skills, projects, roles, certifications, or positions), do NOT list it as a gap.
+- Suggestions should be context-aware. For example: "Mention React.js experience explicitly in the 'Edumate Project' description" rather than a generic "Add React.js".
+- Return ONLY a valid JSON object with these keys:
+  - "gap_analysis": {{"minor": [...], "major": [...]}}
+  - "suggestions": {{
+        "resume_improvements": (string),
+        "skills_to_add": (list),
+        "learning_resources": (list of objects: {{"skill": str, "resource": str}})
+    }}
+  - "matched_skills": (list)
 
-Do not include explanations, markdown, or any text outside the JSON.
-
-=== END OF INSTRUCTIONS ===
+Do not include explanations, markdown, or any extra text outside the JSON.
 
 === START JD ===
 {jd_text}

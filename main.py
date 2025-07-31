@@ -5,6 +5,9 @@ from typing import Optional
 
 from fastapi import FastAPI, UploadFile, Form, HTTPException, Body
 
+from fastapi.middleware.cors import CORSMiddleware
+
+
 from services.mongo_service import (
     store_job_description,
     store_candidate,
@@ -20,7 +23,9 @@ from services.mongo_service import (
     add_interview_to_candidate,
     add_interview_to_interviewer,
     get_candidate_interviews,
-    candidates_collection
+    candidates_collection,
+    users_collection,
+    close_role, get_all_closed_roles
 )
 
 from services.qdrant_service import (
@@ -46,8 +51,23 @@ from services.ollama_utils import (
     call_fitment_llm
 )
 
+from services.auth_utils import verify_password
+
+from fastapi.responses import StreamingResponse
+from bson import ObjectId
+import io
+
 
 app = FastAPI()
+
+# Allow frontend requests from localhost:3000
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # or ["*"] for any origin
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.post("/add-role/", status_code=201)
 async def add_role(
@@ -353,3 +373,50 @@ async def aggregate_interviews(candidate_id: str):
     )
 
     return aggregate_result
+
+
+@app.post("/login/")
+async def login_user(email: str = Form(...), password: str = Form(...)):
+    user = users_collection.find_one({"email": email})
+    if not user or not verify_password(password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    return {
+        "user_id": user["user_id"],
+        "name": user["name"],
+        "role": user["role"]
+    }
+
+
+from fastapi import HTTPException, Response
+from fastapi.responses import StreamingResponse
+import io
+
+@app.get("/get-resume/{candidate_id}")
+async def get_resume(candidate_id: str):
+    candidate = candidates_collection.find_one({"candidate_id": candidate_id})
+    if not candidate or "resume_file" not in candidate:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    # Use the actual file name from your DB
+    file_name = candidate.get("file_name", f"{candidate_id}.pdf")
+
+    return StreamingResponse(
+        io.BytesIO(candidate["resume_file"]),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="{file_name}"'
+        }
+    )
+
+@app.post("/close-role/{role_id}")
+async def close_role_api(role_id: str):
+    success = close_role(role_id)
+    if success:
+        return {"message": f"Role {role_id} successfully closed."}
+    else:
+        raise HTTPException(status_code=400, detail="Role not found or already closed.")
+
+@app.get("/roles-closed/")
+async def get_roles_closed():
+    return get_all_closed_roles()

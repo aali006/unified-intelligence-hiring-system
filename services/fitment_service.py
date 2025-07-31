@@ -99,16 +99,28 @@ def get_vector_by_id(collection, id):
 def compute_cosine_similarity(v1, v2):
     return float(cosine_similarity(v1, v2)[0][0])
 
-def extract_top_relevant_chunks(jd_text, resume_text, min_percent=0.20, min_coverage_chars=1000):
+def extract_top_relevant_chunks(jd_text, resume_text, min_percent=0.25, min_coverage_chars=1500):
+    """
+    Selects the most relevant chunks from the resume for LLM analysis.
+    Uses semantic similarity + JD keyword overlap boosting.
+    Expanded slightly to capture project/PoR mentions without major latency increase.
+    """
     jd_vector = model.encode(jd_text).reshape(1, -1)
     resume_chunks = split_resume_into_chunks(resume_text)
+
+    jd_keywords = set([w.lower() for w in jd_text.split() if len(w) > 2])
 
     chunk_scores = []
     for i, chunk in enumerate(resume_chunks):
         chunk_vec = model.encode(chunk).reshape(1, -1)
         score = compute_cosine_similarity(chunk_vec, jd_vector)
-        print(f"Chunk {i+1} | Score: {round(score, 4)} | Length: {len(chunk)}")
-        chunk_scores.append((chunk, score))
+
+        keyword_overlap = sum(1 for word in jd_keywords if word in chunk.lower())
+        bonus = 0.05 * min(keyword_overlap, 4)  # allow slightly more bonus
+        boosted_score = min(score + bonus, 1.0)
+
+        print(f"Chunk {i+1} | Score: {round(score, 4)} | Bonus: {round(bonus, 3)} | Length: {len(chunk)}")
+        chunk_scores.append((chunk, boosted_score))
 
     top_chunks = sorted(chunk_scores, key=lambda x: x[1], reverse=True)
 
@@ -120,9 +132,10 @@ def extract_top_relevant_chunks(jd_text, resume_text, min_percent=0.20, min_cove
     for chunk, _ in top_chunks:
         selected.append(chunk)
         accumulated += len(chunk)
-        if accumulated >= threshold_chars:
+        if accumulated >= threshold_chars or len(selected) >= 8:  # bumped to 8 chunks
             break
 
+    print(f"✅ Selected {len(selected)} chunks (~{accumulated} chars) with JD keyword boosting")
     return "\n\n".join(selected)
 
 def get_cleaned_fitment_analysis(jd_text, resume_text):
@@ -130,7 +143,7 @@ def get_cleaned_fitment_analysis(jd_text, resume_text):
     print("📦 Prompt preview:\n", prompt[:500], "\n...trimmed")
     print("📏 Prompt length (chars):", len(prompt))
 
-    raw_output = call_fitment_llm(prompt, max_tokens=500)
+    raw_output = call_fitment_llm(prompt, max_tokens=600)
     print("🧠 Raw model output preview:\n", raw_output[:1000])
 
     json_match = re.search(r"\{[\s\S]*\}", raw_output)

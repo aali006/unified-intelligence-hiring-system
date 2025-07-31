@@ -3,7 +3,7 @@ import re
 def split_resume_into_chunks(resume_text, min_length=200, max_length=800):
     """
     Splits the resume into logical chunks using headings and line breaks.
-    Ensures each chunk is within reasonable size for embedding.
+    Ensures each chunk is within reasonable size for embedding. 
 
     Args:
         resume_text (str): The full resume text.

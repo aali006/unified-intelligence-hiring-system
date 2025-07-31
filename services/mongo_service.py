@@ -9,10 +9,13 @@ db = client["test-positions"]
 roles_collection = db["roles"]
 candidates_collection = db["candidates"]
 interviewers_collection = db["interviewers"]
+users_collection = db["users"]
+closed_roles_collection = db["closed_roles"]
 
 # Create unique indexes (run once on startup; harmless if already exists)
 candidates_collection.create_index("candidate_id", unique=True)
 interviewers_collection.create_index("interviewer_id", unique=True)
+users_collection.create_index("user_id", unique=True)
 
 def get_role_id_by_name(role_name):
     """Fetch role_id from roles collection by role name."""
@@ -130,3 +133,55 @@ def get_candidate_interviews(candidate_id):
     candidate = candidates_collection.find_one({"candidate_id": candidate_id}, {"_id": 0, "interviews": 1, "interview_aggregate": 1})
     return candidate
 
+def add_user(user_id, name, email, hashed_password, role, department):
+    try:
+        result = users_collection.insert_one({
+            "user_id": user_id,
+            "name": name,
+            "email": email,
+            "password_hash": hashed_password,
+            "role": role,
+            "department": department
+        })
+
+        # Auto-link if role is interviewer
+        if role == "Interviewer":
+            from datetime import datetime
+            interviewers_collection.insert_one({
+                "interviewer_id": user_id,
+                "name": name,
+                "email": email,
+                "department": department,
+                "joined_on": datetime.now(),
+                "interviews_taken": []
+            })
+
+        return str(result.inserted_id)
+    except DuplicateKeyError:
+        return None
+
+def close_role(role_id):
+    """Close a role if it's open and log the closure."""
+    role = roles_collection.find_one({"role_id": role_id})
+    if not role or role.get("status") != "open":
+        return None  # Role not found or already closed
+
+    # Update role status
+    roles_collection.update_one(
+        {"role_id": role_id},
+        {"$set": {"status": "closed"}}
+    )
+
+    # Log closure in closed_roles collection
+    from datetime import datetime
+    closed_roles_collection.insert_one({
+        "role_id": role["role_id"],
+        "role": role["role"],
+        "closed_on": datetime.now()
+    })
+
+    return True
+
+def get_all_closed_roles():
+    """Return all closed roles ever logged."""
+    return list(closed_roles_collection.find({}, {"_id": 0}))
