@@ -1,0 +1,52 @@
+✅ Daily Workflow (Frontend Only)
+✅ Step 1: Open Terminal in Your Project Folder
+bash
+Copy
+Edit
+cd "C:\Users\Lenovo\Documents\Phoenix Code\unified-hiring-tool-ui"
+
+
+✅ Step 2: Start the React Dev Server
+bash
+Copy
+Edit
+npm start
+This will:
+
+Start your app on http://localhost:3000
+
+Hot reload changes whenever you edit a file
+
+Keep running until you press Ctrl + C
+
+
+
+✅ Step 3: Edit & Save Code
+Make changes in any file (.js, .css, etc.) inside /src
+
+No need to re-run npm start — changes reflect automatically
+
+
+
+✅ Step 4: Use Browser for Testing
+Visit:
+
+/ → Login page
+
+/hr/dashboard → HR view
+
+/interviewer/dashboard → Interviewer view
+
+Use manual routing for now. Later, the login form will redirect automatically.
+
+
+
+
+✅ Step 5: Stop the App (End of Day)
+In the terminal where npm start is running:
+
+bash
+Copy
+Edit
+Ctrl + C
+Press y if prompted.

@@ -1,0 +1,249 @@
+/* FitmentViewer.css */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --danger: #ef4444;
+  --danger-hover: #dc2626;
+  --white: #ffffff;
+  --gray-light: #f1f5f9;
+  --text-dark: #1e293b;
+  --text-light: #475569;
+  --border: #e2e8f0;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Base modal backdrop */
+.modal-backdrop {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Modal Content Large */
+.modal-content.large {
+  background: var(--white);
+  border-radius: 16px;
+  width: 95%;
+  max-width: 1000px;
+  max-height: 90vh;
+  padding: 2.5rem;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1rem;
+}
+
+.modal-header h3 {
+  font-size: 1.75rem;
+  margin: 0;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.close-btn {
+  background: var(--danger);
+  color: var(--white);
+  border: none;
+  padding: 8px 14px;
+  font-size: 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background: var(--danger-hover);
+}
+
+/* Dual gauges container */
+.dual-gauge-container {
+  display: flex;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.gauge-item {
+  flex: 1;
+  min-width: 240px;
+  text-align: center;
+}
+
+.gauge-label {
+  font-weight: 600;
+  margin-top: 0.75rem;
+  color: var(--text-dark);
+  font-size: 1rem;
+}
+
+/* Centered content (for loading state) */
+.center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 1.2rem;
+  padding: 3rem;
+  font-size: 1rem;
+  color: var(--text-dark);
+}
+
+/* Fitment Details */
+.fitment-details {
+  margin-top: 2rem;
+  text-align: left;
+  font-size: 1rem;
+  color: var(--text-dark);
+}
+
+.fitment-details h4 {
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  font-size: 1.25rem;
+  color: var(--primary);
+  border-left: 4px solid var(--primary);
+  padding-left: 0.5rem;
+}
+
+.fitment-details ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.fitment-details li {
+  margin-bottom: 0.5rem;
+}
+
+.fitment-details p {
+  background: var(--gray-light);
+  padding: 1rem;
+  border-radius: 8px;
+  line-height: 1.6;
+}
+
+.fitment-details a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.fitment-details a:hover {
+  color: var(--primary-hover);
+  text-decoration: underline;
+}
+
+/* Tags styling */
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+}
+
+.tag {
+  padding: 0.4rem 0.9rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.tag-green {
+  background: #e0f8e9;
+  color: #1c7c4f;
+}
+
+.tag-yellow {
+  background: #fff4d6;
+  color: #856404;
+}
+
+.tag-red {
+  background: #fde2e2;
+  color: #c0392b;
+}
+
+.tag-blue {
+  background: #e6f0ff;
+  color: #004085;
+}
+
+
+/* Scrollbar styling for overflow */
+.modal-content.large::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-content.large::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.modal-content.large::-webkit-scrollbar-thumb {
+  background: #cccccc;
+  border-radius: 10px;
+}
+
+.modal-content.large::-webkit-scrollbar-thumb:hover {
+  background: #999999;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.download-btn {
+  background: var(--primary);
+  color: var(--white);
+  border: none;
+  padding: 8px 14px;
+  font-size: 0.95rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.download-btn:hover {
+  background: var(--primary-hover);
+}

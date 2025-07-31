@@ -1,0 +1,138 @@
+.container {
+  max-width: 1100px;
+  margin: 2.5rem auto;
+  padding: 2.5rem;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  font-family: 'Segoe UI', sans-serif;
+}
+
+h2, h3, h4 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #222;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 0.5rem;
+}
+
+.select-role {
+  margin-bottom: 2.5rem;
+}
+
+.form-group label {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  display: block;
+  font-size: 1rem;
+}
+
+.form-select {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+  background-color: #f9f9f9;
+}
+
+.candidate-section {
+  margin-bottom: 3rem;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.table th,
+.table td {
+  padding: 1.1rem;
+  border: 1px solid #e0e0e0;
+  text-align: center;
+  vertical-align: middle;
+  font-size: 1rem;
+}
+
+.table th {
+  background-color: #f1f4f8;
+  font-weight: 600;
+  color: #333;
+  text-transform: uppercase;
+}
+
+.table td {
+  color: #444;
+}
+
+.table tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+/* Buttons for actions */
+button.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.95rem;
+  border-radius: 6px;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-outline-primary {
+  color: #007bff;
+  border: 1px solid #007bff;
+  background-color: transparent;
+}
+
+.btn-outline-primary:hover {
+  background-color: #e6f0ff;
+}
+
+.btn-outline-danger {
+  color: #dc3545;
+  border: 1px solid #dc3545;
+  background-color: transparent;
+}
+
+.btn-outline-danger:hover {
+  background-color: #fce6e9;
+}
+
+.empty-message {
+  text-align: center;
+  font-style: italic;
+  color: #888;
+  margin: 2rem 0;
+}
+
+@media screen and (max-width: 768px) {
+  .table th, .table td {
+    font-size: 0.9rem;
+    padding: 0.6rem;
+  }
+
+  .container {
+    padding: 1.2rem;
+  }
+
+  h2, h3, h4 {
+    font-size: 1.3rem;
+  }
+
+  .form-select {
+    padding: 0.6rem;
+    font-size: 0.95rem;
+  }
+
+  button.btn {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.85rem;
+  }
+}
