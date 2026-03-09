@@ -22,10 +22,10 @@ def score_fitment_logic(candidate_id: str):
             print("❌ Candidate not found in MongoDB.")
             return None
 
-        # 🚨 NEW: Return cached fitment result if it already exists
-        if "results" in candidate:
-            print("✅ Existing fitment result found — returning cached result.")
-            return candidate["results"]
+        # # 🚨 NEW: Return cached fitment result if it already exists
+        # if "results" in candidate:
+        #     print("✅ Existing fitment result found — returning cached result.")
+        #     return candidate["results"]
 
         role_id = candidate["applied_role_id"]
         resume_id = int(candidate_id.replace("CND-", ""))
@@ -143,7 +143,7 @@ def get_cleaned_fitment_analysis(jd_text, resume_text):
     print("📦 Prompt preview:\n", prompt[:500], "\n...trimmed")
     print("📏 Prompt length (chars):", len(prompt))
 
-    raw_output = call_fitment_llm(prompt, max_tokens=600)
+    raw_output = call_fitment_llm(prompt, max_tokens=1000)
     print("🧠 Raw model output preview:\n", raw_output[:1000])
 
     json_match = re.search(r"\{[\s\S]*\}", raw_output)
@@ -160,8 +160,9 @@ def get_cleaned_fitment_analysis(jd_text, resume_text):
 
 def clean_llm_gap_output(raw_output):
     def canonicalize(skill):
+        # Normalizes strings for accurate comparison
         return (
-            skill.strip()
+            str(skill).strip()
             .lower()
             .replace(" or similar", "")
             .replace("basic knowledge of", "")
@@ -182,33 +183,62 @@ def clean_llm_gap_output(raw_output):
         cleaned = []
         for skill in skill_list:
             canon = canonicalize(skill)
-            if canon not in seen:
+            if canon and canon not in seen:
                 seen.add(canon)
                 cleaned.append(skill)
         return sorted(cleaned)
 
+    # 1. Validation & Extraction
     if not raw_output or not isinstance(raw_output, dict):
         return empty_fitment_output()
 
-    gap_analysis = raw_output.get("gap_analysis", {})
-    if not isinstance(gap_analysis, dict):
-        return empty_fitment_output()
-
-    suggestions = raw_output.get("suggestions", {})
-    if not isinstance(suggestions, dict):
-        return empty_fitment_output()
-
     matched_skills = dedup_skills(raw_output.get("matched_skills", []))
+    gap_analysis = raw_output.get("gap_analysis", {})
+    suggestions = raw_output.get("suggestions", {})
 
-    minor_clean = dedup_skills(gap_analysis.get("minor", []))
+    # 2. CROSS-LIST DEDUPLICATION (The Fix for Overlaps)
+    # Create a set of skills we ALREADY have in the resume
+    matched_canons = {canonicalize(s) for s in matched_skills}
+
+    # Filter Minor Gaps: Must not be in Matched
+    minor_raw = dedup_skills(gap_analysis.get("minor", []))
+    minor_clean = [s for s in minor_raw if canonicalize(s) not in matched_canons]
+
+    # Filter Major Gaps: Must not be in Matched AND must not be in Minor
     major_raw = dedup_skills(gap_analysis.get("major", []))
-    major_clean = [s for s in major_raw if canonicalize(s) not in map(canonicalize, minor_clean)]
+    minor_canons = {canonicalize(s) for s in minor_clean}
+    
+    major_clean = [
+        s for s in major_raw 
+        if canonicalize(s) not in matched_canons 
+        and canonicalize(s) not in minor_canons
+    ]
 
+    # 3. FALLBACK FOR IRRELEVANT CANDIDATES
+    # If it's a 0% match and no gaps were found, the AI failed. Force a message.
+    if not matched_skills and not major_clean:
+        major_clean = ["Core Technical Stack (No overlap found)"]
+
+    # 4. SUGGESTION SAFETY NET (The Fix for empty suggestions)
     resume_improvements = suggestions.get("resume_improvements", "")
     if isinstance(resume_improvements, list):
         resume_improvements = " ".join(resume_improvements)
-    elif not isinstance(resume_improvements, str):
-        resume_improvements = ""
+    
+    # If AI is lazy, generate a context-aware improvement
+    if not str(resume_improvements).strip():
+        if len(matched_skills) > 3:
+            resume_improvements = f"Strong foundation in {', '.join(matched_skills[:2])}. Focus on quantifying your impact with metrics (e.g., '% improvement')."
+        else:
+            resume_improvements = "Tailor your resume by adding a 'Technical Skills' section that explicitly lists the keywords found in the JD."
+
+    skills_to_add = dedup_skills(suggestions.get("skills_to_add", []))
+    if not skills_to_add:
+        # Use Major Gaps as a fallback for skills to add
+        skills_to_add = major_clean[:3] if major_clean else ["Relevant Industry Certifications"]
+
+    learning_resources = suggestions.get("learning_resources", [])
+    if not isinstance(learning_resources, list) or not learning_resources:
+        learning_resources = [{"skill": "Core JD Stack", "resource": "Search Coursera/edX for foundational certifications"}]
 
     return {
         "gap_analysis": {
@@ -216,17 +246,12 @@ def clean_llm_gap_output(raw_output):
             "major": major_clean
         },
         "suggestions": {
-            "resume_improvements": resume_improvements.strip(),
-            "skills_to_add": dedup_skills(suggestions.get("skills_to_add", [])),
-            "learning_resources": (
-                suggestions.get("learning_resources", [])
-                if isinstance(suggestions.get("learning_resources", []), list)
-                else []
-            )
+            "resume_improvements": str(resume_improvements).strip(),
+            "skills_to_add": skills_to_add,
+            "learning_resources": learning_resources
         },
         "matched_skills": matched_skills
     }
-
 def empty_fitment_output():
     return {
         "gap_analysis": {"minor": [], "major": []},

@@ -1,0 +1,193 @@
+/* .rag-container {
+    display: flex;
+    flex-direction: column;
+    height: 500px;
+    width: 100%;
+    max-width: 600px;
+    background: #f4f7f6;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    overflow: hidden;
+    margin: 20px auto;
+}
+
+.chat-window {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.message-bubble {
+    max-width: 80%;
+    padding: 10px 15px;
+    border-radius: 15px;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.mesage-bubble.user {
+    align-self: flex-end;
+    background-color: #007bff;
+    color: white;
+    border-bottom-right-radius: 2px;
+}
+
+.message-bubble.bot {
+    align-self: flex-start;
+    background-color: #e9ecef;
+    color: #333;
+    border-bottom-left-radius: 2px;
+
+}
+
+.thinking {
+    font-style: italic;
+    opacity: 0.7;
+}
+
+
+.input-area {
+    display: flex;
+    padding: 15px;
+    background: white;
+    border-top: 1px solid #ddd;
+
+}
+
+.input-area input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    outline: none;
+}
+
+.input-area button {
+    margin-left: 10px;
+    padding: 10px 20px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.input-area button:disabled {
+    background: #ccc;
+} */
+
+
+/* Core Layout - This locks the app to the screen height */
+.rag-layout {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden; /* Prevents the whole page from scrolling */
+    background-color: #f9f9f9;
+}
+
+/* Sidebar Styling - Exactly as you had it */
+.chat-sidebar {
+    width: 260px;
+    background-color: #202123;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    height: 100%;
+}
+
+.new-chat-btn {
+    border: 1px solid #4d4d4f;
+    background: transparent;
+    color: white;
+    padding: 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.thread-item {
+    padding: 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: 0.3s;
+}
+
+.thread-item.active { background-color: #343541; }
+.thread-item:hover { background-color: #2b2c33; }
+
+/* Main Area - Fixed to prevent overflow */
+.chat-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Keep it locked to screen */
+    position: relative;
+    overflow: hidden;
+}
+
+/* Chat Window - The ONLY part that scrolls */
+.chat-window {
+    flex: 1;
+    overflow-y: auto;
+    padding: 40px 15% 20px 15%; /* Adjusted bottom padding */
+    display: flex;
+    flex-direction: column;
+}
+
+.message-bubble {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.message-bubble.user { background-color: white; }
+.message-bubble.bot { background-color: #f7f7f8; }
+
+.avatar {
+    font-weight: bold;
+    min-width: 30px;
+}
+
+/* Input Area - Now pinned to the bottom without scrolling */
+.input-container {
+    width: 100%;
+    padding: 10px 15% 30px 15%; /* Pushes it slightly up from the very bottom edge */
+    background: white; 
+    border-top: 1px solid #eee;
+}
+
+.input-wrapper {
+    display: flex;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 10px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.05);
+}
+
+.input-wrapper input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 16px;
+    padding: 5px 10px;
+}
+
+/* Bonus: Style for the scrollbar to make it look modern like ChatGPT */
+.chat-window::-webkit-scrollbar {
+    width: 6px;
+}
+.chat-window::-webkit-scrollbar-thumb {
+    background-color: #c1c1c1;
+    border-radius: 10px;
+}

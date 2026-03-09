@@ -3,7 +3,8 @@ from qdrant_client.models import PointStruct, Distance, VectorParams, PointIdsLi
 from sentence_transformers import SentenceTransformer
 
 # Initialize Qdrant client
-client = QdrantClient(host="localhost", port=7000)
+#client = QdrantClient(host="localhost", port=7000)
+client = QdrantClient(host="127.0.0.1", port=6333)
 
 # Load SentenceTransformer model (384-dimensional)
 model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -69,3 +70,5 @@ def delete_jd_vector(role_id):
         collection_name=JD_COLLECTION,
         points_selector=PointIdsList(points=[role_id])
     )
+
+qdrant_client = client  # This creates an alias so both names work
