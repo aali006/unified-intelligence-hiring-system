@@ -4,8 +4,11 @@ from sentence_transformers import SentenceTransformer
 
 # Initialize Qdrant client
 #client = QdrantClient(host="localhost", port=7000)
-client = QdrantClient(host="127.0.0.1", port=6333)
-
+# client = QdrantClient(host="127.0.0.1", port=6333)
+client = QdrantClient(
+    url="https://1b6f8eb5-ecc0-405c-b80f-f3e686272de1.europe-west3-0.gcp.cloud.qdrant.io:6333", 
+    api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.A65FYUgndGwk8r4qMN5RB94IUIqNliMA8wYTVaclsqs",
+)
 # Load SentenceTransformer model (384-dimensional)
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
