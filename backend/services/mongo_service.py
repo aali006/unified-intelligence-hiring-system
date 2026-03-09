@@ -2,7 +2,8 @@ from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 
 # Initialize MongoDB client and database
-client = MongoClient("mongodb://localhost:27017/")
+# client = MongoClient("mongodb://localhost:27017/")
+client = MongoClient("mongodb+srv://admin:<db_password>@cluster0.jon3j76.mongodb.net/?appName=Cluster0")
 db = client["test-positions"]
 
 # Collections
