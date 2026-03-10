@@ -19,7 +19,8 @@ function RolesPage() {
     jd_text: ''
   });
 
-  const BASE_URL = 'http://localhost:8080';
+  // const BASE_URL = 'http://localhost:8080';
+  const BASE_URL = 'https://unwithering-unattentively-herbert.ngrok-free.dev';
 
   useEffect(() => {
     fetchRoles();
