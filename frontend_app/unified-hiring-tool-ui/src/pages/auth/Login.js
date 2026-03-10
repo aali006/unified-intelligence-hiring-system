@@ -55,9 +55,16 @@ function Login() {
       formData.append('email', email);
       formData.append('password', password);
 
-      const res = await axios.post('http://localhost:8080/login/', formData, {
+      // const res = await axios.post('http://localhost:8080/login/', formData, {
+      //   headers: {
+      //     'Content-Type': 'multipart/form-data',
+      //   },
+      // });
+      const res = await axios.post('https://unwithering-unattentively-herbert.ngrok-free.dev/login/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
+          // 2. ADD THIS HEADER TO BYPASS THE NGROK WARNING PAGE
+          'ngrok-skip-browser-warning': '69420',
         },
       });
 
