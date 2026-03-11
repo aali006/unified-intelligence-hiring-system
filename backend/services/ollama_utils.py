@@ -130,35 +130,73 @@ MODEL = 'llama3.2:1b'
 
 import httpx # Make sure to pip install httpx
 
-async def call_fitment_llm(prompt: str, max_tokens: int = 1500) -> str:
-    try:
-        # Using AsyncClient prevents the "frozen" UI/Database feeling
-        async with httpx.AsyncClient(timeout=300.0) as client:
-            response = await client.post(
-                OLLAMA_BASE_URL,
-                json={
-                    "model": MODEL,
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {
-                        "num_predict": max_tokens,
-                        "temperature": 0.0,
-                        "num_ctx": 4096, # Reduced from 8192 for 1B model speed
-                    }
-                }
-            )
+# async def call_fitment_llm(prompt: str, max_tokens: int = 1500) -> str:
+#     try:
+#         # Using AsyncClient prevents the "frozen" UI/Database feeling
+#         async with httpx.AsyncClient(timeout=300.0) as client:
+#             response = await client.post(
+#                 OLLAMA_BASE_URL,
+#                 json={
+#                     "model": MODEL,
+#                     "prompt": prompt,
+#                     "stream": False,
+#                     "options": {
+#                         "num_predict": max_tokens,
+#                         "temperature": 0.0,
+#                         "num_ctx": 4096, # Reduced from 8192 for 1B model speed
+#                     }
+#                 }
+#             )
         
+#         if response.status_code != 200:
+#             return ""
+
+#         json_data = response.json()
+#         raw_output = json_data.get("response", "").strip()
+#         # Cleans the JSON from any markdown clutter
+#         raw_output = re.sub(r'^```json\s*|\s*```$', '', raw_output, flags=re.MULTILINE)
+#         return raw_output
+
+#     except Exception as e:
+#         print("❌ Fitment LLM call failed:", e)
+#         return ""
+
+# import requests
+# import re
+
+# OLLAMA_BASE_URL = "http://localhost:11434/api/generate"
+# MODEL = "llama3.2:1b"
+
+def call_fitment_llm(prompt: str, max_tokens: int = 1500) -> str:
+    try:
+        response = requests.post(
+            OLLAMA_BASE_URL,
+            json={
+                "model": MODEL,
+                "prompt": prompt,
+                "stream": False,
+                "options": {
+                    "num_predict": max_tokens,
+                    "temperature": 0.0,
+                    "num_ctx": 4096
+                }
+            },
+            timeout=300
+        )
+
         if response.status_code != 200:
+            print("❌ Ollama returned:", response.status_code)
             return ""
 
-        json_data = response.json()
-        raw_output = json_data.get("response", "").strip()
-        # Cleans the JSON from any markdown clutter
-        raw_output = re.sub(r'^```json\s*|\s*```$', '', raw_output, flags=re.MULTILINE)
+        data = response.json()
+        raw_output = data.get("response", "").strip()
+
+        raw_output = re.sub(r'^```json\s*|\s*```$', '', raw_output)
+
         return raw_output
 
     except Exception as e:
-        print("❌ Fitment LLM call failed:", e)
+        print("❌ LLM call failed:", e)
         return ""
     
 def build_prompt(jd_text: str, resume_text: str) -> str:

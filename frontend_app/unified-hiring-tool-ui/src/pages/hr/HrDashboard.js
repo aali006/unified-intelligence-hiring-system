@@ -25,30 +25,70 @@ export default function HrDashboard() {
   const [interviewWeekly, setInterviewWeekly] = useState([0, 0, 0, 0]);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
+  const BASE_URL = 'https://unwithering-unattentively-herbert.ngrok-free.dev';
+
+
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const [candidatesRes, rolesRes, closedRolesRes, interviewersRes] = await Promise.all([
-          axios.get('http://localhost:8080/get-candidates/'),
-          axios.get('http://localhost:8080/get-roles/'),
-          axios.get('http://localhost:8080/roles-closed/'),
-          axios.get('http://localhost:8080/get-interviewers/')
-        ]);
+      // try {
+      //   const [candidatesRes, rolesRes, closedRolesRes, interviewersRes] = await Promise.all([
+      //     axios.get('http://localhost:8080/get-candidates/'),
+      //     axios.get('http://localhost:8080/get-roles/'),
+      //     axios.get('http://localhost:8080/roles-closed/'),
+      //     axios.get('http://localhost:8080/get-interviewers/')
+      //   ]);
+       try {
+        // const [candidatesRes, rolesRes, closedRolesRes, interviewersRes] = await Promise.all([
+        //   axios.get('https://unwithering-unattentively-herbert.ngrok-free.dev/get-candidates/'),
+        //   axios.get('https://unwithering-unattentively-herbert.ngrok-free.dev/get-roles/'),
+        //   axios.get('https://unwithering-unattentively-herbert.ngrok-free.dev/roles-closed/'),
+        //   axios.get('https://unwithering-unattentively-herbert.ngrok-free.dev/get-interviewers/')
+        // ]);
+        const headers = {
+  headers: {
+    "ngrok-skip-browser-warning": "true"
+  }
+};
 
-        const pending = candidatesRes.data.filter(candidate => {
-          const rounds = candidate.interviews || [];
-          const has1 = rounds.some(r => r.round === 1);
-          const has2 = rounds.some(r => r.round === 2);
-          return !(has1 && has2);
-        });
-        setInterviewsPending(pending.length);
+const [candidatesRes, rolesRes, closedRolesRes, interviewersRes] = await Promise.all([
+  axios.get(`${BASE_URL}/get-candidates/`, headers),
+  axios.get(`${BASE_URL}/get-roles/`, headers),
+  axios.get(`${BASE_URL}/roles-closed/`, headers),
+  axios.get(`${BASE_URL}/get-interviewers/`, headers)
+]);
+//         const pending = candidates.filter(candidate => {
+//           const rounds = candidate.interviews || [];
+//           const has1 = rounds.some(r => r.round === 1);
+//           const has2 = rounds.some(r => r.round === 2);
+//           return !(has1 && has2);
+//         });
 
-        const open = rolesRes.data.filter(r => r.status === 'open');
+//         const candidates = Array.isArray(candidatesRes.data) ? candidatesRes.data : [];
+// const roles = Array.isArray(rolesRes.data) ? rolesRes.data : [];
+// const closedRoles = Array.isArray(closedRolesRes.data) ? closedRolesRes.data : [];
+// const interviewers = Array.isArray(interviewersRes.data) ? interviewersRes.data : [];
+//         setInterviewsPending(pending.length);
+const candidates = Array.isArray(candidatesRes.data) ? candidatesRes.data : [];
+const roles = Array.isArray(rolesRes.data) ? rolesRes.data : [];
+const closedRoles = Array.isArray(closedRolesRes.data) ? closedRolesRes.data : [];
+const interviewers = Array.isArray(interviewersRes.data) ? interviewersRes.data : [];
+
+// Calculate pending interviews
+const pending = candidates.filter(candidate => {
+  const rounds = candidate.interviews || [];
+  const has1 = rounds.some(r => r.round === 1);
+  const has2 = rounds.some(r => r.round === 2);
+  return !(has1 && has2);
+});
+
+setInterviewsPending(pending.length);
+
+        const open = roles.filter(r => r.status === 'open');
         setOpenPositions(open.length);
 
         const start = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
         const weeklyClosed = [0, 0, 0, 0];
-        closedRolesRes.data.forEach(({ closed_on }) => {
+        closedRoles.forEach(({ closed_on }) => {
           const d = new Date(closed_on);
           if (d >= start) {
             const w = Math.min(Math.floor((d.getDate() - 1) / 7), 3);
@@ -58,7 +98,7 @@ export default function HrDashboard() {
         setClosedWeekly(weeklyClosed);
 
         const weeklyInterviews = [0, 0, 0, 0];
-        interviewersRes.data.forEach(i => {
+        interviewers.forEach(i => {
           (i.interviews_taken || []).forEach(({ datetime }) => {
             const d = new Date(datetime);
             if (d >= start) {

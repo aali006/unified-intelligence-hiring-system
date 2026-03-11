@@ -10,7 +10,9 @@ import autoTable from 'jspdf-autotable';
 import './FeedbackPage.css';
 
 export default function FeedbackPage() {
-  const BASE_URL = 'http://localhost:8080';
+  // const BASE_URL = 'http://localhost:8080';
+    const BASE_URL = 'https://unwithering-unattentively-herbert.ngrok-free.dev';
+
   const [roles, setRoles] = useState([]);
   const [selectedRole, setSelectedRole] = useState('');
   const [candidates, setCandidates] = useState([]);
@@ -23,8 +25,23 @@ export default function FeedbackPage() {
   useEffect(() => {
     const fetchRoles = async () => {
       try {
-        const res = await axios.get(`${BASE_URL}/get-roles/`);
-        setRoles(res.data.filter((r) => r.status === 'open'));
+        // const res = await axios.get(`${BASE_URL}/get-roles/`);
+        // setRoles(res.data.filter((r) => r.status === 'open'));
+        const res = await axios.get(`${BASE_URL}/get-roles/`, {
+  headers: {
+    "ngrok-skip-browser-warning": "true"
+  }
+});
+
+console.log("Roles API:", res.data);
+
+const openRoles = Array.isArray(res.data)
+  ? res.data.filter(
+      (r) => r.status?.toLowerCase().trim() === "open"
+    )
+  : [];
+
+setRoles(openRoles);
       } catch (err) {
         console.error('❌ Failed to fetch roles:', err);
       }
@@ -35,10 +52,25 @@ export default function FeedbackPage() {
   const fetchCandidates = async (roleId) => {
     setLoading(true);
     try {
-      const res = await axios.get(`${BASE_URL}/get-candidates/`);
-      const filtered = res.data.filter(
-        (c) => c.applied_role_id === roleId && (c.interviews || []).length >= 2
-      );
+      // const res = await axios.get(`${BASE_URL}/get-candidates/`);
+      // const filtered = res.data.filter(
+      //   (c) => c.applied_role_id === roleId && (c.interviews || []).length >= 2
+      // );
+      const res = await axios.get(`${BASE_URL}/get-candidates/`, {
+  headers: {
+    "ngrok-skip-browser-warning": "true"
+  }
+});
+
+console.log("Candidates API:", res.data);
+
+const filtered = Array.isArray(res.data)
+  ? res.data.filter(
+      (c) => c.applied_role_id === roleId && (c.interviews || []).length >= 2
+    )
+  : [];
+
+setCandidates(filtered);
       setCandidates(filtered);
     } catch (err) {
       console.error('❌ Failed to fetch candidates:', err);
@@ -190,7 +222,12 @@ export default function FeedbackPage() {
                       variant="outline-primary"
                       size="sm"
                       onClick={() =>
-                        window.open(`${BASE_URL}/get-resume/${c.candidate_id}`, '_blank')
+                        // window.open(`${BASE_URL}/get-resume/${c.candidate_id}`, '_blank')
+                        window.open(
+  `${BASE_URL}/get-resume/${c.candidate_id}?ngrok-skip-browser-warning=true`,
+  "_blank",
+  "noopener,noreferrer"
+)
                       }
                     >
                       View Resume

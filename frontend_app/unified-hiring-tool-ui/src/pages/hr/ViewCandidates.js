@@ -8,23 +8,72 @@ function ViewCandidates() {
   const [selectedRoleId, setSelectedRoleId] = useState('');
   const [candidates, setCandidates] = useState([]);
 
-  const BASE_URL = 'http://localhost:8080';
+  // const BASE_URL = 'http://localhost:8080';
+const BASE_URL = 'https://unwithering-unattentively-herbert.ngrok-free.dev';
+
 
   useEffect(() => {
     fetchRoles();
     fetchCandidates();
   }, []);
 
+  // const fetchRoles = async () => {
+  //   const res = await axios.get(`${BASE_URL}/get-roles/`);
+  //   const openRoles = res.data.filter((role) => role.status === 'open');
+  //   setRoles(openRoles);
+  // };
   const fetchRoles = async () => {
-    const res = await axios.get(`${BASE_URL}/get-roles/`);
-    const openRoles = res.data.filter((role) => role.status === 'open');
+  try {
+
+    const res = await axios.get(`${BASE_URL}/get-roles/`, {
+      headers: {
+        "ngrok-skip-browser-warning": "true"
+      }
+    });
+
+    console.log("Roles API:", res.data);
+
+    const openRoles = Array.isArray(res.data)
+      ? res.data.filter(
+          (role) => role.status?.toLowerCase().trim() === "open"
+        )
+      : [];
+
     setRoles(openRoles);
-  };
+
+  } catch (err) {
+
+    console.error("Error fetching roles:", err);
+
+  }
+};
+
+  // const fetchCandidates = async () => {
+  //   const res = await axios.get(`${BASE_URL}/get-candidates/`);
+  //   setCandidates(res.data);
+  // };
 
   const fetchCandidates = async () => {
-    const res = await axios.get(`${BASE_URL}/get-candidates/`);
-    setCandidates(res.data);
-  };
+  try {
+
+    const res = await axios.get(`${BASE_URL}/get-candidates/`, {
+      headers: {
+        "ngrok-skip-browser-warning": "true"
+      }
+    });
+
+    console.log("Candidates API:", res.data);
+
+    const candidateList = Array.isArray(res.data) ? res.data : [];
+
+    setCandidates(candidateList);
+
+  } catch (err) {
+
+    console.error("Error fetching candidates:", err);
+
+  }
+};
 
   const getAvgScore = (candidate, round) => {
     if (!candidate || !Array.isArray(candidate.interviews)) return '-';
@@ -49,9 +98,19 @@ function ViewCandidates() {
     }
   };
 
-  const filtered = candidates.filter(c => c.applied_role_id === selectedRoleId);
-  const pending = filtered.filter(c => (c.interviews || []).length < 2);
-  const completed = filtered.filter(c => (c.interviews || []).length === 2);
+  // const filtered = candidates.filter(c => c.applied_role_id === selectedRoleId);
+  const filtered = Array.isArray(candidates)
+  ? candidates.filter(c => c.applied_role_id === selectedRoleId)
+  : [];
+  // const pending = filtered.filter(c => (c.interviews || []).length < 2);
+  // const completed = filtered.filter(c => (c.interviews || []).length === 2);
+  const pending = Array.isArray(filtered)
+  ? filtered.filter(c => (c.interviews || []).length < 2)
+  : [];
+
+const completed = Array.isArray(filtered)
+  ? filtered.filter(c => (c.interviews || []).length === 2)
+  : [];
 
   const renderTable = (list, title) => (
     <div className="candidate-section">
@@ -75,15 +134,32 @@ function ViewCandidates() {
               <td>{getAvgScore(c, 1)}</td>
               <td>{getAvgScore(c, 2)}</td>
               <td>
-                <button
+                {/* <button
                   className="btn btn-outline-primary btn-sm"
                   title="View Resume"
                   onClick={() =>
-                    window.open(`${BASE_URL}/get-resume/${c.candidate_id}`, '_blank')
+                    // window.open(`${BASE_URL}/get-resume/${c.candidate_id}`, '_blank')
+                    window.open(
+  `${BASE_URL}/get-resume/${c.candidate_id}?ngrok-skip-browser-warning=true`,
+  "_blank"
+)
                   }
                 >
                   <FaEye />
-                </button>
+                </button> */}
+                <button
+  className="btn btn-outline-primary btn-sm"
+  title="View Resume"
+  onClick={() =>
+    window.open(
+      `${BASE_URL}/get-resume/${c.candidate_id}?ngrok-skip-browser-warning=true`,
+      "_blank",
+      "noopener,noreferrer"
+    )
+  }
+>
+  <FaEye />
+</button>
               </td>
               <td>
                 <button

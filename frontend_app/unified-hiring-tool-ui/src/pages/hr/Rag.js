@@ -1,140 +1,8 @@
-
-// import React, { useState, useRef, useEffect } from 'react';
-// import './Rag.css';
-
-// const RagChat = () => {
-//     // 1. Start with an empty array for a clean slate
-//     const [threads, setThreads] = useState([]);
-//     const [activeThreadId, setActiveThreadId] = useState(null);
-//     const [messages, setMessages] = useState([]);
-//     const [input, setInput] = useState('');
-//     const [loading, setLoading] = useState(false);
-//     const chatEndRef = useRef(null);
-
-//     const scrollToBottom = () => {
-//         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-//     };
-
-//     useEffect(() => {
-//         scrollToBottom();
-//     }, [messages]);
-
-//     const handleSend = async () => {
-//         if (!input.trim()) return;
-
-//         // If user starts typing but hasn't created a thread yet, create one automatically
-//         if (!activeThreadId) {
-//             createNewChat(input.substring(0, 20) + "...");
-//         }
-
-//         const userMessage = { sender: 'user', text: input };
-//         setMessages(prev => [...prev, userMessage]);
-//         const currentInput = input;
-//         setInput('');
-//         setLoading(true);
-
-//         try {
-//             const response = await fetch('http://localhost:8080/hr-chat/', {
-//                 method: 'POST',
-//                 headers: { 'Content-Type': 'application/json' },
-//                 body: JSON.stringify({ query: currentInput }),
-//             });
-//             const data = await response.json();
-//             setMessages(prev => [...prev, { sender: 'bot', text: data.reply }]);
-//         } catch (error) {
-//             setMessages(prev => [...prev, { sender: 'bot', text: "Error connecting to backend." }]);
-//         } finally {
-//             setLoading(false);
-//         }
-//     };
-
-//     const createNewChat = (title = 'New Conversation') => {
-//         const newId = Date.now();
-//         const newThread = { id: newId, title: title };
-//         setThreads([newThread, ...threads]);
-//         setActiveThreadId(newId);
-//         setMessages([]); // Clear chat for the new thread
-//     };
-
-//     return (
-//         <div className="rag-layout">
-//             {/* --- SIDEBAR --- */}
-//             <div className="chat-sidebar">
-//                 <button className="new-chat-btn" onClick={() => createNewChat()}>
-//                     + New Chat
-//                 </button>
-//                 <div className="thread-list">
-//                     {threads.length === 0 ? (
-//                         <p className="no-threads">No recent chats</p>
-//                     ) : (
-//                         threads.map(thread => (
-//                             <div 
-//                                 key={thread.id} 
-//                                 className={`thread-item ${activeThreadId === thread.id ? 'active' : ''}`}
-//                                 onClick={() => setActiveThreadId(thread.id)}
-//                             >
-//                                 <span className="thread-icon">💬</span>
-//                                 <div className="thread-info">
-//                                     <p className="thread-title">{thread.title}</p>
-//                                 </div>
-//                             </div>
-//                         ))
-//                     )}
-//                 </div>
-//             </div>
-
-//             {/* --- MAIN CHAT AREA --- */}
-//             <div className="chat-main">
-//                 <div className="chat-window">
-//                     {!activeThreadId ? (
-//                         <div className="welcome-screen">
-//                             <div className="lion-logo">🦁</div>
-//                             <h2>Welcome to HR Intelligence</h2>
-//                             <p>Click "New Chat" or just start typing to begin.</p>
-//                         </div>
-//                     ) : (
-//                         <>
-//                             {messages.map((msg, index) => (
-//                                 <div key={index} className={`message-bubble ${msg.sender}`}>
-//                                     <div className="avatar">{msg.sender === 'user' ? 'HR' : '🦁'}</div>
-//                                     <div className="message-text">{msg.text}</div>
-//                                 </div>
-//                             ))}
-//                             {loading && (
-//                                 <div className="message-bubble bot thinking">
-//                                     <div className="avatar">🦁</div>
-//                                     <div className="message-text italic">Searching database...</div>
-//                                 </div>
-//                             )}
-//                         </>
-//                     )}
-//                     <div ref={chatEndRef} />
-//                 </div>
-
-//                 <div className="input-container">
-//                     <div className="input-wrapper">
-//                         <input 
-//                             value={input} 
-//                             onChange={(e) => setInput(e.target.value)}
-//                             onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-//                             placeholder="Ask about your candidates..."
-//                         />
-//                         <button onClick={handleSend} disabled={loading} className="send-btn">
-//                             Send
-//                         </button>
-//                     </div>
-//                     <p className="disclaimer">AI may provide inaccurate info. Verify candidate details.</p>
-//                 </div>
-//             </div>
-//         </div>
-//     );
-// };
-
-// export default RagChat;
-
-
 import React, { useState, useRef, useEffect } from 'react';
 import './Rag.css';
+
+const BASE_URL = 'https://unwithering-unattentively-herbert.ngrok-free.dev';
+
 
 const RagChat = () => {
     const [threads, setThreads] = useState([]);
@@ -160,7 +28,7 @@ const RagChat = () => {
     useEffect(() => {
         const fetchThreads = async () => {
             try {
-                const res = await fetch(`http://localhost:8080/hr/threads/${userEmail}`);
+                const res = await fetch(`${BASE_URL}/hr/threads/${userEmail}`);
                 const data = await res.json();
                 if (Array.isArray(data)) setThreads(data);
             } catch (err) {
@@ -175,7 +43,7 @@ const RagChat = () => {
         if (activeThreadId && !activeThreadId.toString().startsWith('temp_')) {
             const loadMessages = async () => {
                 try {
-                    const res = await fetch(`http://localhost:8080/hr/chat-history/${activeThreadId}`);
+                    const res = await fetch(`${BASE_URL}/hr/chat-history/${activeThreadId}`);
                     const data = await res.json();
                     setMessages(data);
                 } catch (err) {
@@ -244,7 +112,7 @@ const RagChat = () => {
     setLoading(true);
 
     try {
-        const response = await fetch('http://localhost:8080/hr-chat/', {
+        const response = await fetch(`${BASE_URL}/hr-chat/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 

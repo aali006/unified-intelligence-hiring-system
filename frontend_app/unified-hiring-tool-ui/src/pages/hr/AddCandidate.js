@@ -5,7 +5,8 @@ import axios from 'axios';
 import './AddCandidate.css';
 import { FaSave, FaCheckCircle, FaTrashAlt } from 'react-icons/fa';
 
-const BASE_URL = 'http://localhost:8080';
+// const BASE_URL = 'http://localhost:8080';
+const BASE_URL = 'https://unwithering-unattentively-herbert.ngrok-free.dev';
 
 export default function AddCandidate() {
   const [roles, setRoles] = useState([]);
@@ -24,18 +25,56 @@ export default function AddCandidate() {
   const [statusType, setStatusType] = useState('');
   const [step, setStep] = useState(1);
 
-  useEffect(() => {
-    const fetchRoles = async () => {
-      try {
-        const res = await axios.get(`${BASE_URL}/get-roles/`);
-        setRoles(res.data.filter((r) => r.status === 'open'));
-      } catch (err) {
-        console.error('❌ Failed to fetch roles', err);
-      }
-    };
-    fetchRoles();
-  }, []);
+  // useEffect(() => {
+  //   const fetchRoles = async () => {
+  //     try {
+  //       const res = await axios.get(`${BASE_URL}/get-roles/`);
+  //       setRoles(res.data.filter((r) => r.status === 'open'));
+  //     } catch (err) {
+  //       console.error('❌ Failed to fetch roles', err);
+  //     }
+  //   };
+  //   fetchRoles();
+  // }, []);
+useEffect(() => {
 
+  const fetchRoles = async () => {
+
+    try {
+
+      const res = await axios.get(`${BASE_URL}/get-roles/`, {
+        headers: {
+          "ngrok-skip-browser-warning": "true"
+        }
+      });
+
+      console.log("Roles API response:", res.data);
+
+      if (Array.isArray(res.data)) {
+
+        const openRoles = res.data.filter(
+          (r) => r.status?.toLowerCase().trim() === "open"
+        );
+
+        setRoles(openRoles);
+
+      } else {
+
+        console.error("Roles API did not return array:", res.data);
+
+      }
+
+    } catch (err) {
+
+      console.error("❌ Failed to fetch roles", err);
+
+    }
+
+  };
+
+  fetchRoles();
+
+}, []);
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -102,20 +141,32 @@ export default function AddCandidate() {
         fileType: formData.resume_file.type
       });
 
-      const res = await axios.post(`${BASE_URL}/add-candidate/`, data, {
-        headers: { 
-          'Content-Type': 'multipart/form-data'
-        },
-        timeout: 30000 // 30 second timeout for large files
-      });
-
+      // const res = await axios.post(`${BASE_URL}/add-candidate/`, data, {
+      //   headers: { 
+      //     'Content-Type': 'multipart/form-data'
+      //   },
+      //   timeout: 30000 // 30 second timeout for large files
+      // });
+const res = await axios.post(`${BASE_URL}/add-candidate/`, data, {
+  headers: {
+    "Content-Type": "multipart/form-data",
+    "ngrok-skip-browser-warning": "true"
+  },
+  timeout: 30000
+});
+      
       const added = res.data;
       console.log('✅ Candidate added successfully:', added);
       setCandidateId(added.candidate_id);
 
       // Fetch the updated candidate details
       setStatusMsg('Fetching extracted details...');
-      const allCandidates = await axios.get(`${BASE_URL}/get-candidates/`);
+      // const allCandidates = await axios.get(`${BASE_URL}/get-candidates/`);
+      const allCandidates = await axios.get(`${BASE_URL}/get-candidates/`, {
+  headers: {
+    "ngrok-skip-browser-warning": "true"
+  }
+});
       const newCandidate = allCandidates.data.find(
         (c) => c.candidate_id === added.candidate_id
       );
