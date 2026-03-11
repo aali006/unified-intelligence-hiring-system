@@ -62,7 +62,8 @@
 #         return f"I'm sorry, I ran into a snag: {str(e)}"
 
 
-import ollama
+# import ollama
+import requests
 from qdrant_client import QdrantClient
 from sentence_transformers import SentenceTransformer
 from services.mongo_service import candidates_collection
@@ -140,7 +141,8 @@ client = QdrantClient(host="127.0.0.1", port=6333)
 #         return f"Lion encountered an issue: {str(e)}"
 
 
-import ollama
+# import ollama
+
 
 def get_hr_chat_response(user_query: str, stream: bool = False):
     try:
@@ -198,17 +200,31 @@ def get_hr_chat_response(user_query: str, stream: bool = False):
         """
 
         # STEP 6: Call Ollama with Streaming logic
-        if stream:
-            # This returns a generator that yields chunks
-            response = ollama.generate(model="llama3.1:8b-instruct-q2_K", prompt=prompt, stream=True)
-            def generator():
-                for chunk in response:
-                    yield chunk['response']
-            return generator() # Return the generator itself
-        else:
-            # Standard behavior
-            output = ollama.generate(model="llama3.1:8b-instruct-q2_K", prompt=prompt)
-            return output['response']
+        # if stream:
+        #     # This returns a generator that yields chunks
+        #     response = ollama.generate(model="llama3.1:8b-instruct-q2_K", prompt=prompt, stream=True)
+        #     def generator():
+        #         for chunk in response:
+        #             yield chunk['response']
+        #     return generator() # Return the generator itself
+        # else:
+        #     # Standard behavior
+        #     output = ollama.generate(model="llama3.1:8b-instruct-q2_K", prompt=prompt)
+        #     return output['response']
+        # STEP 6: Call Ollama via REST API
+
+        response = requests.post(
+            "http://localhost:11434/api/generate",
+            json={
+                "model": "llama3.2:1b",
+                "prompt": prompt,
+                "stream": False
+            },
+            timeout=300
+        )
+
+        data = response.json()
+        return data.get("response", "")
 
     except Exception as e:
         error_msg = f"Lion encountered an issue: {str(e)}"
@@ -216,3 +232,4 @@ def get_hr_chat_response(user_query: str, stream: bool = False):
             def error_gen(): yield error_msg
             return error_gen()
         return error_msg
+
