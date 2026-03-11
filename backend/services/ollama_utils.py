@@ -161,13 +161,8 @@ import httpx # Make sure to pip install httpx
 #         print("❌ Fitment LLM call failed:", e)
 #         return ""
 
-# import requests
-# import re
+def call_fitment_llm(prompt: str, max_tokens: int = 1500):
 
-# OLLAMA_BASE_URL = "http://localhost:11434/api/generate"
-# MODEL = "llama3.2:1b"
-
-def call_fitment_llm(prompt: str, max_tokens: int = 1500) -> str:
     try:
         response = requests.post(
             OLLAMA_BASE_URL,
@@ -186,18 +181,18 @@ def call_fitment_llm(prompt: str, max_tokens: int = 1500) -> str:
 
         if response.status_code != 200:
             print("❌ Ollama returned:", response.status_code)
-            return ""
+            return None
 
         data = response.json()
         raw_output = data.get("response", "").strip()
 
         raw_output = re.sub(r'^```json\s*|\s*```$', '', raw_output)
 
-        return raw_output
+        return json.loads(raw_output)
 
     except Exception as e:
         print("❌ LLM call failed:", e)
-        return ""
+        return None
     
 def build_prompt(jd_text: str, resume_text: str) -> str:
     return f"""
