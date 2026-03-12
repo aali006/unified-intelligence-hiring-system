@@ -64,14 +64,16 @@
 
 # import ollama
 import requests
-from qdrant_client import QdrantClient
+# from qdrant_client import QdrantClient
 from sentence_transformers import SentenceTransformer
 from services.mongo_service import candidates_collection
+from services.qdrant_service import qdrant_client as client
 
 # 1. Initialize Tools
 # Use the same model you used to embed the resumes originally
 embedder = SentenceTransformer('all-MiniLM-L6-v2')
-client = QdrantClient(host="127.0.0.1", port=6333)
+# client = QdrantClient(host="127.0.0.1", port=6333)
+
 
 # def get_hr_chat_response(user_query: str):
 #     try:
