@@ -198,7 +198,7 @@ def get_hr_chat_response(user_query: str, stream: bool = False):
                 context_blocks.append(
                     f"CANDIDATE: {candidate.get('name')}\n"
                     f"ROLE: {candidate.get('applied_role')}\n"
-                    f"RESUME INFO: {candidate.get('resume_text')[:1200]}\n"
+                    f"RESUME INFO: {candidate.get('resume_text')[:]}\n"
                     f"STATUS: {candidate.get('status')}"
                 )
 
