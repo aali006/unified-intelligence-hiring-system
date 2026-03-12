@@ -168,20 +168,34 @@ def get_hr_chat_response(user_query: str, stream: bool = False):
             )
 
         # STEP 3: Build Context from MongoDB
-        context_blocks = []
-        for hit in search_results:
-            c_id = hit.payload.get("candidate_id")
-            name = hit.payload.get("name")
+        # context_blocks = []
+        # for hit in search_results:
+        #     c_id = hit.payload.get("candidate_id")
+        #     name = hit.payload.get("name")
             
+        #     candidate = candidates_collection.find_one({
+        #         "$or": [{"candidate_id": c_id}, {"name": {"$regex": str(name), "$options": "i"}}]
+        #     })
+        for hit in search_results:
+
+            numeric_id = hit.payload.get("candidate_id")
+            name = hit.payload.get("name")
+
+            # convert numeric → MongoDB format
+            c_id = f"CND-{numeric_id}"
+
             candidate = candidates_collection.find_one({
-                "$or": [{"candidate_id": c_id}, {"name": {"$regex": str(name), "$options": "i"}}]
+                "$or": [
+                    {"candidate_id": c_id},
+                    {"name": {"$regex": str(name), "$options": "i"}}
+                ]
             })
             
             if candidate:
                 context_blocks.append(
                     f"CANDIDATE: {candidate.get('name')}\n"
                     f"ROLE: {candidate.get('applied_role')}\n"
-                    f"RESUME INFO: {candidate.get('resume_text')[:500]}\n"
+                    f"RESUME INFO: {candidate.get('resume_text')[:1200]}\n"
                     f"STATUS: {candidate.get('status')}"
                 )
 
@@ -190,13 +204,19 @@ def get_hr_chat_response(user_query: str, stream: bool = False):
 
         # STEP 5: The "Hybrid" Prompt
         prompt = f"""
-        You are an HR Assistant. Use the context below to answer internal questions. 
-        If the context is empty, answer using your general knowledge.
+        You are an HR assistant helping recruiters.
+
+        Use ONLY the information provided in the internal database context when answering about candidates.
+
+        If candidate information exists, summarize it clearly.
+
+        If no candidate information exists, say that the candidate is not present in the database.
 
         INTERNAL DATABASE CONTEXT:
         {final_context}
 
-        QUESTION: {user_query}
+        QUESTION:
+        {user_query}
         """
 
         # STEP 6: Call Ollama with Streaming logic
