@@ -270,3 +270,31 @@ Now respond below with ONLY the JSON object:
         "skills": [],
         "education": {"level": "", "degree": ""}
     }
+
+
+    # ----Extra Addition
+
+import re
+
+def extract_contact_metadata(text: str) -> dict:
+    """
+    Extract contact details directly using regex instead of LLM.
+    """
+
+    email_match = re.search(r'\b[\w\.-]+@[\w\.-]+\.\w+\b', text)
+
+    phone_match = re.search(
+        r'(\+?\d{1,3}[\s-]?)?\(?\d{3,5}\)?[\s-]?\d{3,5}[\s-]?\d{4}',
+        text
+    )
+
+    github_match = re.search(r'github\.com/[A-Za-z0-9_-]+', text)
+
+    location_match = re.search(r'\bIndia\b|\bUSA\b|\bUK\b|\bCanada\b', text)
+
+    return {
+        "email": email_match.group() if email_match else "",
+        "phone": phone_match.group() if phone_match else "",
+        "github": github_match.group() if github_match else "",
+        "location": location_match.group() if location_match else ""
+    }

@@ -151,7 +151,9 @@ async def add_candidate(
     print("🔎 Extracted resume text preview:\n", resume_text[:3000])
 
     # ✅ Only extract metadata using LLM (no skills/education)
-    metadata = extract_all_contact_metadata_from_context(resume_text)
+    # metadata = extract_all_contact_metadata_from_context(resume_text)
+    from services.resume_utils import extract_contact_metadata
+    metadata = extract_contact_metadata(resume_text)
     email = metadata.get("email", "")
     github = metadata.get("github", "")
     phone = metadata.get("phone", "")
