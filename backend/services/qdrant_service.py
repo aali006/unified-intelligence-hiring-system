@@ -58,9 +58,8 @@ def store_jd_embedding(role_id, jd_text):
 
 def store_resume_embedding(candidate_id, resume_text, name, applied_role):
 
-    # Convert CND-4907 → 4907
-    if isinstance(candidate_id, str) and candidate_id.startswith("CND-"):
-        numeric_id = int(candidate_id.replace("CND-", ""))
+    if isinstance(candidate_id, str):
+        numeric_id = int(''.join(filter(str.isdigit, candidate_id)))
     else:
         numeric_id = candidate_id
 
@@ -81,7 +80,7 @@ def store_resume_embedding(candidate_id, resume_text, name, applied_role):
         ]
     )
 
-    return "Resume embedded in Qdrant"
+    print("✅ Stored embedding for:", candidate_id)
 
 def delete_resume_vector(candidate_id):
     """Delete a resume vector by candidate_id string like 'CND-4907'."""
