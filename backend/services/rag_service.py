@@ -146,31 +146,36 @@ embedder = SentenceTransformer('all-MiniLM-L6-v2')
 
 # import ollama
 
-
 def get_hr_chat_response(user_query: str, stream: bool = False):
+
     try:
-        # STEP 1: Create a Vector for the search
-        # query_vector = embedder.encode(user_query).tolist()
-        # STEP 1: Try direct candidate lookup by name
+
+        context_blocks = []
+
+        # ------------------------------
+        # STEP 1: Try Name Detection
+        # ------------------------------
         candidate = candidates_collection.find_one(
             {"name": {"$regex": user_query, "$options": "i"}}
         )
 
-        context_blocks = []
-
         if candidate:
+
             context_blocks.append(
                 f"""
-        CANDIDATE: {candidate.get('name')}
-        ROLE: {candidate.get('applied_role')}
+CANDIDATE: {candidate.get('name')}
+ROLE: {candidate.get('applied_role')}
 
-        RESUME:
-        {candidate.get('resume_text')}
-        """
+RESUME INFORMATION:
+{candidate.get('resume_text')}
+"""
             )
 
         else:
-            # fallback to vector search
+
+            # ------------------------------
+            # STEP 2: Semantic Search
+            # ------------------------------
             query_vector = embedder.encode(user_query).tolist()
 
             response = client.query_points(
@@ -180,130 +185,116 @@ def get_hr_chat_response(user_query: str, stream: bool = False):
                 with_payload=True
             )
 
-            search_results = response.points
+            for hit in response.points:
 
-            for hit in search_results:
                 numeric_id = hit.payload.get("candidate_id")
-                name = hit.payload.get("name")
 
-                c_id = f"CND-{numeric_id}"
+                if numeric_id is None:
+                    continue
 
-                candidate = candidates_collection.find_one({"candidate_id": c_id})
+                mongo_id = f"CND-{numeric_id}"
 
-                if candidate:
-                    context_blocks.append(
-                        f"""
-        CANDIDATE: {candidate.get('name')}
-        ROLE: {candidate.get('applied_role')}
-
-        RESUME:
-        {candidate.get('resume_text')}
-        """
-            )
-
-        # STEP 2: Search Qdrant
-        search_results = []
-        try:
-            response = client.query_points(
-                collection_name="resumes",
-                query=query_vector,
-                limit=3,
-                with_payload=True
-            )
-            search_results = response.points
-        except AttributeError:
-            search_results = client.search(
-                collection_name="resumes",
-                query_vector=query_vector,
-                limit=3,
-                with_payload=True
-            )
-
-        # STEP 3: Build Context from MongoDB
-        # context_blocks = []
-        # for hit in search_results:
-        #     c_id = hit.payload.get("candidate_id")
-        #     name = hit.payload.get("name")
-            
-        #     candidate = candidates_collection.find_one({
-        #         "$or": [{"candidate_id": c_id}, {"name": {"$regex": str(name), "$options": "i"}}]
-        #     })
-        context_blocks = []
-        for hit in search_results:
-
-            numeric_id = hit.payload.get("candidate_id")
-            name = hit.payload.get("name")
-
-            # convert numeric → MongoDB format
-            c_id = f"CND-{numeric_id}"
-
-            candidate = candidates_collection.find_one({
-                "$or": [
-                    {"candidate_id": c_id},
-                    {"name": {"$regex": str(name), "$options": "i"}}
-                ]
-            })
-            
-            if candidate:
-                context_blocks.append(
-                    f"CANDIDATE: {candidate.get('name')}\n"
-                    f"ROLE: {candidate.get('applied_role')}\n"
-                    f"RESUME INFO: {candidate.get('resume_text')[:]}\n"
-                    f"STATUS: {candidate.get('status')}"
+                candidate = candidates_collection.find_one(
+                    {"candidate_id": mongo_id}
                 )
 
-        # STEP 4: Combine Context
-        final_context = "\n---\n".join(context_blocks) if context_blocks else "No matching candidates found in database."
+                if candidate:
 
-        # STEP 5: The "Hybrid" Prompt
+                    context_blocks.append(
+                        f"""
+CANDIDATE: {candidate.get('name')}
+ROLE: {candidate.get('applied_role')}
+
+RESUME INFORMATION:
+{candidate.get('resume_text')}
+"""
+                    )
+
+        # ------------------------------
+        # STEP 3: Build Context
+        # ------------------------------
+        if context_blocks:
+            final_context = "\n---\n".join(context_blocks)
+        else:
+            final_context = "No matching candidates found."
+
+        # ------------------------------
+        # STEP 4: Prompt
+        # ------------------------------
         prompt = f"""
-        You are an HR assistant.
+You are an HR assistant.
 
-        Each candidate block represents a different person.
+Each candidate block represents a different person.
 
-        When answering about a candidate, use ONLY the information under that candidate's name.
+Use ONLY the information inside each candidate block.
 
-        Do NOT mix information from different candidates.
+Do NOT mix information between candidates.
 
-        DATABASE CONTEXT:
-        {final_context}
+DATABASE CONTEXT:
+{final_context}
 
-        QUESTION:
-        {user_query}
-        """
+QUESTION:
+{user_query}
+"""
 
-        # STEP 6: Call Ollama with Streaming logic
-        # if stream:
-        #     # This returns a generator that yields chunks
-        #     response = ollama.generate(model="llama3.1:8b-instruct-q2_K", prompt=prompt, stream=True)
-        #     def generator():
-        #         for chunk in response:
-        #             yield chunk['response']
-        #     return generator() # Return the generator itself
-        # else:
-        #     # Standard behavior
-        #     output = ollama.generate(model="llama3.1:8b-instruct-q2_K", prompt=prompt)
-        #     return output['response']
-        # STEP 6: Call Ollama via REST API
-
+        # ------------------------------
+        # STEP 5: Call Ollama
+        # ------------------------------
         response = requests.post(
             "http://localhost:11434/api/generate",
             json={
                 "model": "llama3.2:1b",
                 "prompt": prompt,
-                "stream": False
+                "stream": stream
             },
+            stream=stream,
             timeout=300
         )
 
-        data = response.json()
-        return data.get("response", "")
+        # ------------------------------
+        # Streaming Mode
+        # ------------------------------
+        if stream:
+
+            import json
+
+            def generator():
+
+                for line in response.iter_lines():
+
+                    if line:
+
+                        data = json.loads(line.decode())
+
+                        token = data.get("response", "")
+
+                        yield token
+
+                        if data.get("done"):
+                            break
+
+            return generator()
+
+        # ------------------------------
+        # Normal Mode
+        # ------------------------------
+        else:
+
+            data = response.json()
+
+            return data.get("response", "")
 
     except Exception as e:
+
         error_msg = f"Lion encountered an issue: {str(e)}"
+
         if stream:
-            def error_gen(): yield error_msg
+
+            def error_gen():
+                yield error_msg
+
             return error_gen()
+
         return error_msg
 
 
