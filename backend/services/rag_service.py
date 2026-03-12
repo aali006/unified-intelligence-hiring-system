@@ -64,6 +64,7 @@
 
 # import ollama
 import requests
+import re
 # from qdrant_client import QdrantClient
 from sentence_transformers import SentenceTransformer
 from services.mongo_service import candidates_collection
@@ -149,7 +150,56 @@ embedder = SentenceTransformer('all-MiniLM-L6-v2')
 def get_hr_chat_response(user_query: str, stream: bool = False):
     try:
         # STEP 1: Create a Vector for the search
-        query_vector = embedder.encode(user_query).tolist()
+        # query_vector = embedder.encode(user_query).tolist()
+        # STEP 1: Try direct candidate lookup by name
+        candidate = candidates_collection.find_one(
+            {"name": {"$regex": user_query, "$options": "i"}}
+        )
+
+        context_blocks = []
+
+        if candidate:
+            context_blocks.append(
+                f"""
+        CANDIDATE: {candidate.get('name')}
+        ROLE: {candidate.get('applied_role')}
+
+        RESUME:
+        {candidate.get('resume_text')}
+        """
+            )
+
+        else:
+            # fallback to vector search
+            query_vector = embedder.encode(user_query).tolist()
+
+            response = client.query_points(
+                collection_name="resumes",
+                query=query_vector,
+                limit=3,
+                with_payload=True
+            )
+
+            search_results = response.points
+
+            for hit in search_results:
+                numeric_id = hit.payload.get("candidate_id")
+                name = hit.payload.get("name")
+
+                c_id = f"CND-{numeric_id}"
+
+                candidate = candidates_collection.find_one({"candidate_id": c_id})
+
+                if candidate:
+                    context_blocks.append(
+                        f"""
+        CANDIDATE: {candidate.get('name')}
+        ROLE: {candidate.get('applied_role')}
+
+        RESUME:
+        {candidate.get('resume_text')}
+        """
+            )
 
         # STEP 2: Search Qdrant
         search_results = []
@@ -207,15 +257,15 @@ def get_hr_chat_response(user_query: str, stream: bool = False):
 
         # STEP 5: The "Hybrid" Prompt
         prompt = f"""
-        You are an HR assistant helping recruiters.
+        You are an HR assistant.
 
-        Use ONLY the information provided in the internal database context when answering about candidates.
+        Each candidate block represents a different person.
 
-        If candidate information exists, summarize it clearly.
+        When answering about a candidate, use ONLY the information under that candidate's name.
 
-        If no candidate information exists, say that the candidate is not present in the database.
+        Do NOT mix information from different candidates.
 
-        INTERNAL DATABASE CONTEXT:
+        DATABASE CONTEXT:
         {final_context}
 
         QUESTION:
@@ -255,4 +305,17 @@ def get_hr_chat_response(user_query: str, stream: bool = False):
             def error_gen(): yield error_msg
             return error_gen()
         return error_msg
+
+
+import re
+
+def extract_candidate_name(query):
+    candidates = candidates_collection.find({}, {"name": 1})
+
+    for c in candidates:
+        name = c["name"]
+        if re.search(rf"\b{name}\b", query, re.IGNORECASE):
+            return name
+
+    return None
 
