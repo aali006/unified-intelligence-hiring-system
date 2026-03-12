@@ -298,3 +298,15 @@ def extract_contact_metadata(text: str) -> dict:
         "github": github_match.group() if github_match else "",
         "location": location_match.group() if location_match else ""
     }
+
+
+
+def clean_resume_text(text):
+
+    # fix merged words
+    text = re.sub(r'([a-z])([A-Z])', r'\1 \2', text)
+
+    # normalize whitespace
+    text = re.sub(r'\s+', ' ', text)
+
+    return text.strip()
