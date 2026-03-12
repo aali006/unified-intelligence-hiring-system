@@ -148,7 +148,7 @@ async def add_candidate(
     candidate_id_str = f"CND-{candidate_id_num}"
 
     resume_text = extract_text_from_resume(file_bytes, resume_file.filename)
-    resume_text = clean_resume_text(resume_text)
+    # resume_text = clean_resume_text(resume_text)
     print("🔎 Extracted resume text preview:\n", resume_text[:3000])
 
     # ✅ Only extract metadata using LLM (no skills/education)
