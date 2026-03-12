@@ -178,6 +178,7 @@ def get_hr_chat_response(user_query: str, stream: bool = False):
         #     candidate = candidates_collection.find_one({
         #         "$or": [{"candidate_id": c_id}, {"name": {"$regex": str(name), "$options": "i"}}]
         #     })
+        context_blocks = []
         for hit in search_results:
 
             numeric_id = hit.payload.get("candidate_id")
