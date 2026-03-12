@@ -37,14 +37,40 @@ def store_jd_embedding(role_id, jd_text):
     )
     return "JD embedded in Qdrant"
 
+# def store_resume_embedding(candidate_id, resume_text, name, applied_role):
+#     """Generate vector from resume text and store in Qdrant."""
+#     vector = model.encode(resume_text).tolist()
+#     client.upsert(
+#         collection_name=RESUME_COLLECTION,
+#         points=[
+#             PointStruct(
+#                 id=candidate_id,
+#                 vector=vector,
+#                 payload={
+#                     "candidate_id": candidate_id,
+#                     "name": name,
+#                     "applied_role": applied_role
+#                 }
+#             )
+#         ]
+#     )
+#     return "Resume embedded in Qdrant"
+
 def store_resume_embedding(candidate_id, resume_text, name, applied_role):
-    """Generate vector from resume text and store in Qdrant."""
+
+    # Convert CND-4907 → 4907
+    if isinstance(candidate_id, str) and candidate_id.startswith("CND-"):
+        numeric_id = int(candidate_id.replace("CND-", ""))
+    else:
+        numeric_id = candidate_id
+
     vector = model.encode(resume_text).tolist()
+
     client.upsert(
         collection_name=RESUME_COLLECTION,
         points=[
             PointStruct(
-                id=candidate_id,
+                id=numeric_id,
                 vector=vector,
                 payload={
                     "candidate_id": candidate_id,
@@ -54,6 +80,7 @@ def store_resume_embedding(candidate_id, resume_text, name, applied_role):
             )
         ]
     )
+
     return "Resume embedded in Qdrant"
 
 def delete_resume_vector(candidate_id):
