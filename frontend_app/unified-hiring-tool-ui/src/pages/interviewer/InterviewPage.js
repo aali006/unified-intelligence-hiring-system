@@ -4,6 +4,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './InterviewPage.css';
 
+const BASE_URL = "https://unwithering-unattentively-herbert.ngrok-free.dev"
+
+
 function InterviewPage() {
   const [roles, setRoles] = useState([]);
   const [selectedRoleId, setSelectedRoleId] = useState('');
@@ -29,7 +32,7 @@ function InterviewPage() {
   }, []);
 
   useEffect(() => {
-    axios.get('http://localhost:8080/get-roles/')
+    axios.get(`${BASE_URL}/get-roles/`)
       .then(res => {
         const openRoles = res.data.filter(role => role.status === 'open');
         setRoles(openRoles);
@@ -38,7 +41,7 @@ function InterviewPage() {
 
   // 🔄 Fetch candidates for selected role
   const fetchCandidates = (roleId) => {
-    axios.get('http://localhost:8080/get-candidates/')
+    axios.get(`${BASE_URL}/get-candidates/`)
       .then(res => {
         const roleCandidates = res.data.filter(c => c.applied_role_id === roleId);
         const filtered = roleCandidates.filter(c => {
@@ -118,7 +121,7 @@ function InterviewPage() {
     // }
 
        try {
-        const response = await axios.post('http://localhost:8080/add-interview/', payload);
+        const response = await axios.post(`${BASE_URL}/add-interview/`, payload);
       
       // ✅ Check if the server confirmed the save
         if (response.status === 201 || response.status === 200 || response.data.status === "success") {
@@ -173,7 +176,7 @@ function InterviewPage() {
                 <td>{roles.find(r => r.role_id === c.applied_role_id)?.role || '—'}</td>
                 <td>
                   <a
-                    href={`http://localhost:8080/get-resume/${c.candidate_id}`}
+                    href={`${BASE_URL}/get-resume/${c.candidate_id}`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >

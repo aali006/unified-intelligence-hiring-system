@@ -124,12 +124,14 @@ function InterviewerDashboard() {
 //   }
 // };
 
+const BASE_URL = "https://unwithering-unattentively-herbert.ngrok-free.dev"
+
 const fetchStats = async () => {
   try {
     const localUser = JSON.parse(localStorage.getItem('user') || '{}');
     const [interviewersRes, candidatesRes] = await Promise.all([
-      axios.get('http://localhost:8080/get-interviewers/'),
-      axios.get('http://localhost:8080/get-candidates/')
+      axios.get(`${BASE_URL}/get-interviewers/`),
+      axios.get(`${BASE_URL}/get-candidates/`)
     ]);
 
     // 1. Update Pending Candidates (The part that works)

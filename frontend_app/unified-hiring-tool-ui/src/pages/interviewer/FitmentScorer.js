@@ -5,6 +5,9 @@ import './FitmentScorer.css';
 import ResumeViewer from '../../components/ResumeViewer';
 import FitmentViewer from '../../components/FitmentViewer';
 
+const BASE_URL = 'https://unwithering-unattentively-herbert.ngrok-free.dev';
+
+
 function FitmentScorer() {
   const [roles, setRoles] = useState([]);
   const [selectedRoleId, setSelectedRoleId] = useState('');
@@ -28,7 +31,7 @@ function FitmentScorer() {
   const fetchFitmentData = async (candidateId) => {
     setFitmentModal({ open: true, data: null, loading: true });
     try {
-      const res = await axios.get(`http://localhost:8080/score-fitment/${candidateId}`);
+      const res = await axios.get(`${BASE_URL}/score-fitment/${candidateId}`);
       setFitmentModal({ open: true, data: res.data, loading: false });
     } catch (err) {
       console.error('❌ Fitment fetch failed:', err);
@@ -40,7 +43,7 @@ function FitmentScorer() {
   useEffect(() => {
     const fetchRoles = async () => {
       try {
-        const res = await axios.get('http://localhost:8080/get-roles/');
+        const res = await axios.get(`${BASE_URL}/get-roles/`);
         const openRoles = res.data.filter((r) => r.status === 'open');
         setRoles(openRoles);
       } catch (err) {
@@ -56,7 +59,7 @@ function FitmentScorer() {
 
     const fetchCandidates = async () => {
       try {
-        const res = await axios.get('http://localhost:8080/get-candidates/');
+        const res = await axios.get(`${BASE_URL}/get-candidates/`);
         const roleCandidates = res.data.filter((c) => c.applied_role_id === selectedRoleId);
 
         const pendingCandidates = roleCandidates.filter((c) => {

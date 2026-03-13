@@ -18,8 +18,11 @@ function CompareCandidates() {
   });
   const [comparisonData, setComparisonData] = useState([]);
 
+  const BASE_URL = "https://unwithering-unattentively-herbert.ngrok-free.dev"
+
+
   useEffect(() => {
-    axios.get('http://localhost:8080/get-roles/')
+    axios.get(`${BASE_URL}/get-roles/`)
       .then(res => {
         const openRoles = res.data.filter(role => role.status === 'open');
         setRoles(openRoles);
@@ -32,7 +35,7 @@ function CompareCandidates() {
     const fetch = async () => {
       setLoading(true);
       try {
-        const res = await axios.get('http://localhost:8080/get-candidates/');
+        const res = await axios.get(`${BASE_URL}/get-candidates/`);
         const roleCandidates = res.data.filter(c => c.applied_role_id === selectedRoleId);
         const filtered = [];
 
@@ -43,7 +46,7 @@ function CompareCandidates() {
           if (hasR1 && hasR2) continue;
 
           try {
-            const f = await axios.get(`http://localhost:8080/score-fitment/${c.candidate_id}`);
+            const f = await axios.get(`${BASE_URL}/score-fitment/${c.candidate_id}`);
             filtered.push({ ...c, fitmentData: f.data });
           } catch {}
         }
@@ -76,7 +79,7 @@ function CompareCandidates() {
     try {
       const data = await Promise.all(
         selectedCandidates.map(id =>
-          axios.get(`http://localhost:8080/score-fitment/${id}`)
+          axios.get(`${BASE_URL}/score-fitment/${id}`)
         )
       );
       setComparisonData(data.map(d => d.data));
@@ -125,7 +128,7 @@ function CompareCandidates() {
                     <td>{c.name}</td>
                     <td>
                       <a
-                        href={`http://localhost:8080/get-resume/${c.candidate_id}`}
+                        href={`${BASE_URL}/get-resume/${c.candidate_id}`}
                         target="_blank"
                         rel="noreferrer"
                         className="resume-link"

@@ -136,6 +136,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './Interviewer_Rag.css';
 
+const BASE_URL = 'https://unwithering-unattentively-herbert.ngrok-free.dev';
+
+
 const RagChat = () => {
     const [threads, setThreads] = useState([]);
     const [activeThreadId, setActiveThreadId] = useState(null);
@@ -160,7 +163,7 @@ const RagChat = () => {
     useEffect(() => {
         const fetchThreads = async () => {
             try {
-                const res = await fetch(`http://localhost:8080/interviewer/threads/${userEmail}`);
+                const res = await fetch(`${BASE_URL}/interviewer/threads/${userEmail}`);
                 const data = await res.json();
                 if (Array.isArray(data)) setThreads(data);
             } catch (err) {
@@ -175,7 +178,7 @@ const RagChat = () => {
         if (activeThreadId && !activeThreadId.toString().startsWith('temp_')) {
             const loadMessages = async () => {
                 try {
-                    const res = await fetch(`http://localhost:8080/interviewer/chat-history/${activeThreadId}`);
+                    const res = await fetch(`${BASE_URL}/interviewer/chat-history/${activeThreadId}`);
                     const data = await res.json();
                     setMessages(data);
                 } catch (err) {
@@ -244,7 +247,7 @@ const RagChat = () => {
     setLoading(true);
 
     try {
-        const response = await fetch('http://localhost:8080/interviewer-chat/', {
+        const response = await fetch(`${BASE_URL}/interviewer-chat/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
