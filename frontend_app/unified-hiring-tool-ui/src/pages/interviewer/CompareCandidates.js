@@ -5,66 +5,104 @@ import ResumeViewer from '../../components/ResumeViewer';
 import ComparisonSection from '../../components/ComparisonSection';
 
 function CompareCandidates() {
+
   const [roles, setRoles] = useState([]);
   const [selectedRoleId, setSelectedRoleId] = useState('');
   const [selectedRoleName, setSelectedRoleName] = useState('');
   const [candidates, setCandidates] = useState([]);
   const [selectedCandidates, setSelectedCandidates] = useState([]);
-  const [loading, setLoading] = useState(false);
+
   const [resumeModal, setResumeModal] = useState({
     open: false,
     candidateId: '',
     fileName: ''
   });
+
   const [comparisonData, setComparisonData] = useState([]);
 
-  const BASE_URL = "https://unwithering-unattentively-herbert.ngrok-free.dev"
+  const BASE_URL = "https://unwithering-unattentively-herbert.ngrok-free.dev";
 
 
+  // Fetch roles
   useEffect(() => {
     axios.get(`${BASE_URL}/get-roles/`)
       .then(res => {
-        const openRoles = res.data.filter(role => role.status === 'open');
+
+        const roleList = Array.isArray(res.data) ? res.data : res.data.roles || [];
+
+        const openRoles = roleList.filter(role => role.status === 'open');
+
         setRoles(openRoles);
-      });
+      })
+      .catch(err => console.error("Role fetch error:", err));
+
   }, []);
 
+
+  // Fetch candidates based on selected role
   useEffect(() => {
+
     if (!selectedRoleId) return;
 
-    const fetch = async () => {
-      setLoading(true);
+    const fetchCandidates = async () => {
+
       try {
+
         const res = await axios.get(`${BASE_URL}/get-candidates/`);
-        const roleCandidates = res.data.filter(c => c.applied_role_id === selectedRoleId);
+
+        const candidateList = Array.isArray(res.data)
+          ? res.data
+          : res.data.candidates || [];
+
+        const roleCandidates = candidateList.filter(
+          c => String(c.applied_role_id) === String(selectedRoleId)
+        );
+
         const filtered = [];
 
         for (let c of roleCandidates) {
+
           const interviews = c.interviews || [];
+
           const hasR1 = interviews.some(r => r.round === 1);
           const hasR2 = interviews.some(r => r.round === 2);
+
           if (hasR1 && hasR2) continue;
 
           try {
+
             const f = await axios.get(`${BASE_URL}/score-fitment/${c.candidate_id}`);
-            filtered.push({ ...c, fitmentData: f.data });
-          } catch {}
+
+            filtered.push({
+              ...c,
+              fitmentData: f.data
+            });
+
+          } catch (err) {
+            console.error("Fitment fetch failed:", err);
+          }
+
         }
 
         setCandidates(filtered);
-        const role = roles.find(r => r.role_id === selectedRoleId);
+
+        const role = roles.find(r => String(r.role_id) === String(selectedRoleId));
+
         setSelectedRoleName(role?.role || '');
+
       } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
+        console.error("Candidate fetch error:", err);
       }
+
     };
 
-    fetch();
-  }, [selectedRoleId]);
+    fetchCandidates();
+
+  }, [selectedRoleId, roles]);
+
 
   const handleToggle = (id) => {
+
     setSelectedCandidates(prev =>
       prev.includes(id)
         ? prev.filter(cid => cid !== id)
@@ -72,26 +110,33 @@ function CompareCandidates() {
           ? [...prev, id]
           : (alert('Max 4 candidates'), prev)
     );
+
   };
 
+
   const fetchAndShowComparison = async () => {
-    setLoading(true);
+
     try {
+
       const data = await Promise.all(
         selectedCandidates.map(id =>
           axios.get(`${BASE_URL}/score-fitment/${id}`)
         )
       );
+
       setComparisonData(data.map(d => d.data));
+
     } catch (err) {
       console.error('Comparison load failed:', err);
-    } finally {
-      setLoading(false);
     }
+
   };
 
+
   return (
+
     <div className="compare-page">
+
       <h2>Compare Candidates</h2>
 
       <select
@@ -99,17 +144,25 @@ function CompareCandidates() {
         onChange={(e) => setSelectedRoleId(e.target.value)}
         value={selectedRoleId}
       >
+
         <option value="">Select Role</option>
+
         {roles.map((r) => (
-          <option key={r.role_id} value={r.role_id}>{r.role}</option>
+          <option key={r.role_id} value={r.role_id}>
+            {r.role}
+          </option>
         ))}
+
       </select>
+
 
       {selectedRoleName && (
         <>
+
           <p className="note">Select 2 to 4 candidates to compare.</p>
 
           <table className="candidate-table">
+
             <thead>
               <tr>
                 <th>ID</th>
@@ -118,15 +171,24 @@ function CompareCandidates() {
                 <th>Select</th>
               </tr>
             </thead>
+
             <tbody>
+
               {candidates.length === 0 ? (
-                <tr><td colSpan="4">No eligible candidates</td></tr>
+                <tr>
+                  <td colSpan="4">No eligible candidates</td>
+                </tr>
               ) : (
                 candidates.map((c) => (
+
                   <tr key={c.candidate_id}>
+
                     <td>{c.candidate_id}</td>
+
                     <td>{c.name}</td>
+
                     <td>
+
                       <a
                         href={`${BASE_URL}/get-resume/${c.candidate_id}`}
                         target="_blank"
@@ -135,20 +197,35 @@ function CompareCandidates() {
                       >
                         View PDF
                       </a>
+
                     </td>
+
                     <td>
+
                       <button
-                        className={`btn-choose ${selectedCandidates.includes(c.candidate_id) ? 'selected' : ''}`}
+                        className={`btn-choose ${
+                          selectedCandidates.includes(c.candidate_id)
+                            ? 'selected'
+                            : ''
+                        }`}
                         onClick={() => handleToggle(c.candidate_id)}
                       >
-                        {selectedCandidates.includes(c.candidate_id) ? 'Selected' : 'Choose'}
+                        {selectedCandidates.includes(c.candidate_id)
+                          ? 'Selected'
+                          : 'Choose'}
                       </button>
+
                     </td>
+
                   </tr>
+
                 ))
               )}
+
             </tbody>
+
           </table>
+
 
           <button
             className="compare-btn"
@@ -157,22 +234,36 @@ function CompareCandidates() {
           >
             See Comparison
           </button>
+
         </>
       )}
+
 
       {comparisonData.length > 0 && (
         <ComparisonSection candidates={comparisonData} />
       )}
 
+
       {resumeModal.open && (
+
         <ResumeViewer
           candidateId={resumeModal.candidateId}
           fileName={resumeModal.fileName}
-          onClose={() => setResumeModal({ open: false, candidateId: '', fileName: '' })}
+          onClose={() =>
+            setResumeModal({
+              open: false,
+              candidateId: '',
+              fileName: ''
+            })
+          }
         />
+
       )}
+
     </div>
+
   );
+
 }
 
 export default CompareCandidates;
