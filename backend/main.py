@@ -64,10 +64,11 @@ app = FastAPI()
 # Allow frontend requests from localhost:3000
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # or ["*"] for any origin
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Thread-Id"] # 👈 CRITICAL
 )
 
 @app.post("/add-role/", status_code=201)
@@ -408,8 +409,10 @@ async def login_user(email: str = Form(...), password: str = Form(...)):
     return {
         "user_id": "U001",
         "name": "Admin User",
-        "role": "HR"
+        "role": "HR",
+        "email":email
     }
+    
 
 
 from fastapi import HTTPException, Response
@@ -468,7 +471,10 @@ chat_collection = db["chat_history"]
 # 1. Fetch all unique thread summaries for the sidebar
 @app.get("/hr/threads/{user_email}")
 async def get_user_threads(user_email: str):
-    # This groups messages by thread_id and takes the first message as the title
+    if not user_email or user_email == "undefined":
+        return []
+
+    # Pipeline searches for messages belonging to the user
     pipeline = [
         {"$match": {"user_email": user_email}},
         {"$sort": {"timestamp": 1}},
@@ -480,8 +486,8 @@ async def get_user_threads(user_email: str):
         {"$sort": {"last_updated": -1}}
     ]
     threads = list(chat_collection.aggregate(pipeline))
-    return [{"id": t["_id"], "title": t["title"][:30] + "..."} for t in threads]
-
+    # Safety check on title to prevent empty sidebar items
+    return [{"id": t["_id"], "title": (t.get("title", "New Conversation")[:30] + "...")} for t in threads]
 # 2. Fetch all messages for a specific thread
 @app.get("/hr/chat-history/{thread_id}")
 async def get_thread_history(thread_id: str):
@@ -523,13 +529,15 @@ from datetime import datetime
 @app.post("/hr-chat/")
 async def hr_chat(request: dict):
     query = request.get("query")
-    user_email = request.get("user_email", "admin@company.com")
-    # Use the thread_id sent from frontend, or create a new one
+    # Defaulting to admin@company.com if React fails to send email
+    user_email = request.get("user_email")
+    if not user_email or user_email == "null":
+        user_email = "admin@company.com"
+        
     thread_id = request.get("thread_id")
     if not thread_id or thread_id == "null":
         thread_id = str(uuid4())
     
-    # 1. Save User Message immediately
     timestamp = datetime.utcnow()
     chat_collection.insert_one({
         "thread_id": thread_id, 
@@ -541,28 +549,26 @@ async def hr_chat(request: dict):
 
     def stream_generator():
         full_response = ""
-        # 2. Get the stream from your service
-        # Ensure your get_hr_chat_response has stream=True logic
+        # iterate through generator from rag_service
         for chunk in get_hr_chat_response(query, stream=True):
             full_response += chunk
             yield chunk
 
-        # 3. Save Bot Response to MongoDB after streaming finishes
-        chat_collection.insert_one({
-            "thread_id": thread_id, 
-            "user_email": user_email, 
-            "sender": "bot", 
-            "text": full_response, 
-            "timestamp": datetime.utcnow()
-        })
+        # Only save if we actually got a response
+        if full_response.strip():
+            chat_collection.insert_one({
+                "thread_id": thread_id, 
+                "user_email": user_email, 
+                "sender": "bot", 
+                "text": full_response, 
+                "timestamp": datetime.utcnow()
+            })
 
-    # We send the thread_id in a header so the frontend knows which thread it's in
     return StreamingResponse(
         stream_generator(), 
         media_type="text/plain",
         headers={"X-Thread-Id": thread_id}
     )
-
 
     # Interviewer Page
 
