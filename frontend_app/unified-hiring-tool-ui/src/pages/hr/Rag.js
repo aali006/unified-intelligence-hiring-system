@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './Rag.css';
+import { useCallback } from 'react';
+
 
 const BASE_URL = 'https://unwithering-unattentively-herbert.ngrok-free.dev';
 
@@ -25,18 +27,19 @@ const RagChat = () => {
     }, [messages]);
 
     // 2. Load the Sidebar Threads on startup
-    useEffect(() => {
-        const fetchThreads = async () => {
-            try {
-                const res = await fetch(`${BASE_URL}/hr/threads/${userEmail}`);
-                const data = await res.json();
-                if (Array.isArray(data)) setThreads(data);
-            } catch (err) {
-                console.error("Failed to fetch threads", err);
-            }
-        };
-        fetchThreads();
+
+    const fetchThreads = useCallback(async () => {
+        try {
+            const res = await fetch(`${BASE_URL}/hr/threads/${userEmail}`);
+            const data = await res.json();
+            if (Array.isArray(data)) setThreads(data);
+        } catch (err) {
+            console.error("Failed to fetch threads", err);
+        }
     }, [userEmail]);
+    useEffect(() => {
+    fetchThreads();
+    }, [fetchThreads]);
 
     // 3. Load Messages when a sidebar item is clicked
     useEffect(() => {
@@ -117,7 +120,7 @@ const RagChat = () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 query: currentInput, 
-                thread_id: activeThreadId, 
+                thread_id: activeThreadId ? activeThreadId : null, 
                 user_email: userEmail 
             }),
         });
@@ -153,10 +156,17 @@ const RagChat = () => {
         }
 
         const headerThreadId = response.headers.get("X-Thread-Id");
-        if (!activeThreadId && headerThreadId) {
-            setActiveThreadId(headerThreadId);
+
+        if (headerThreadId && headerThreadId !== activeThreadId) {
+        setActiveThreadId(headerThreadId);
+
+    // reload messages from DB
+            const res = await fetch(`${BASE_URL}/hr/chat-history/${headerThreadId}`);
+            const history = await res.json();
+            setMessages(history);
         }
 
+        await fetchThreads();
     } catch (error) {
         console.error("Streaming error:", error);
     } finally {
@@ -164,9 +174,11 @@ const RagChat = () => {
     }
 };
 
-    const createNewChat = () => {
+    const createNewChat = async () => {
         setActiveThreadId(null);
         setMessages([]);
+
+        await fetchThreads();
     };
 
     return (
