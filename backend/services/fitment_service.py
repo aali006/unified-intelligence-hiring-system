@@ -13,7 +13,7 @@ import torch
 
 # Fast and small model for chunk scoring
 device = "cuda" if torch.cuda.is_available() else "cpu"
-model = SentenceTransformer("BAAI/bge-small-en-v1.5", device)
+model = SentenceTransformer("BAAI/bge-small-en-v1.5", device=device)
 
 def score_fitment_logic(candidate_id: str):
     try:

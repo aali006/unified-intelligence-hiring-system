@@ -12,7 +12,7 @@ client = QdrantClient(
 )
 # Load SentenceTransformer model (384-dimensional)
 device = "cuda" if torch.cuda.is_available() else "cpu"
-model = SentenceTransformer("all-MiniLM-L6-v2", device)
+model = SentenceTransformer("all-MiniLM-L6-v2", device=device)
 
 # Collection names
 JD_COLLECTION = "job_descriptions"

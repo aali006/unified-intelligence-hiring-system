@@ -8,7 +8,7 @@ import torch
 
 # Initialize embedding model
 device = "cuda" if torch.cuda.is_available() else "cpu"
-embedder = SentenceTransformer('all-MiniLM-L6-v2', device)
+embedder = SentenceTransformer('all-MiniLM-L6-v2', device=device)
 
 def get_hr_chat_response(user_query: str, stream: bool = False):
     try:
