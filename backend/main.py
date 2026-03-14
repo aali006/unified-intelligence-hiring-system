@@ -218,13 +218,29 @@ async def delete_candidate_api(candidate_id: str):
     else:
         raise HTTPException(status_code=404, detail="Candidate not found.")
 
+# @app.get("/score-fitment/{candidate_id}")
+# async def score_fitment(candidate_id: str):
+#     result = score_fitment_logic(candidate_id)
+#     if result:
+#         return result
+#     else:
+#         raise HTTPException(status_code=404, detail="Candidate or Role not found.")
+
 @app.get("/score-fitment/{candidate_id}")
 async def score_fitment(candidate_id: str):
-    result = score_fitment_logic(candidate_id)
-    if result:
-        return result
-    else:
-        raise HTTPException(status_code=404, detail="Candidate or Role not found.")
+
+    try:
+        result = score_fitment_logic(candidate_id)
+
+        if result:
+            return result
+        else:
+            return {"error": "Fitment returned empty result"}
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"error": str(e)}
 
 
 
