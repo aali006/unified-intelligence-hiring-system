@@ -9,9 +9,11 @@ import numpy as np
 import time
 import json
 import re
+import torch 
 
 # Fast and small model for chunk scoring
-model = SentenceTransformer("BAAI/bge-small-en-v1.5")
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model = SentenceTransformer("BAAI/bge-small-en-v1.5", device)
 
 def score_fitment_logic(candidate_id: str):
     try:
@@ -115,7 +117,7 @@ def get_vector_by_id(collection, id):
 
     print("❌ Vector NOT found")
     return None
-    
+
 def compute_cosine_similarity(v1, v2):
     return float(cosine_similarity(v1, v2)[0][0])
 

@@ -1,6 +1,7 @@
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct, Distance, VectorParams, PointIdsList
 from sentence_transformers import SentenceTransformer
+import torch
 
 # Initialize Qdrant client
 #client = QdrantClient(host="localhost", port=7000)
@@ -10,7 +11,8 @@ client = QdrantClient(
     api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.A65FYUgndGwk8r4qMN5RB94IUIqNliMA8wYTVaclsqs",
 )
 # Load SentenceTransformer model (384-dimensional)
-model = SentenceTransformer("all-MiniLM-L6-v2")
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model = SentenceTransformer("all-MiniLM-L6-v2", device)
 
 # Collection names
 JD_COLLECTION = "job_descriptions"

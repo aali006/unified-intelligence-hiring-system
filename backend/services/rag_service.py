@@ -4,9 +4,11 @@ import re
 from sentence_transformers import SentenceTransformer
 from services.mongo_service import candidates_collection
 from services.qdrant_service import qdrant_client as client
+import torch
 
 # Initialize embedding model
-embedder = SentenceTransformer('all-MiniLM-L6-v2')
+device = "cuda" if torch.cuda.is_available() else "cpu"
+embedder = SentenceTransformer('all-MiniLM-L6-v2', device)
 
 def get_hr_chat_response(user_query: str, stream: bool = False):
     try:
