@@ -1,8 +1,16 @@
 import React from 'react';
 import './ResumeViewer.css';
 
+
+const BASE_URL = 'https://unwithering-unattentively-herbert.ngrok-free.dev';
+const headers = {
+  headers: {
+    "ngrok-skip-browser-warning": "true"
+  }
+};
+
 function ResumeViewer({ candidateId, fileName, onClose }) {
-  const resumeURL = `http://localhost:8080/get-resume/${candidateId}`;
+  const resumeURL = (`${BASE_URL}/get-resume/${candidateId}`, headers);
 
   return (
     <div className="modal-backdrop">

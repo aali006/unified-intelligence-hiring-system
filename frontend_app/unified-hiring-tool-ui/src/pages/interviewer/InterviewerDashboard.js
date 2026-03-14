@@ -129,16 +129,21 @@ const BASE_URL = "https://unwithering-unattentively-herbert.ngrok-free.dev"
 const fetchStats = async () => {
   try {
     const localUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const headers = {
+      headers: {
+        "ngrok-skip-browser-warning": "true"
+      }
+    }
     const [interviewersRes, candidatesRes] = await Promise.all([
-      axios.get(`${BASE_URL}/get-interviewers/`),
-      axios.get(`${BASE_URL}/get-candidates/`)
+      axios.get(`${BASE_URL}/get-interviewers/`, headers),
+      axios.get(`${BASE_URL}/get-candidates/`, headers)
     ]);
 
     // 1. Update Pending Candidates (The part that works)
     setPendingInterviews(candidatesRes.data.filter(c => (c.interviews || []).length < 2).length);
 
     // 2. Find YOU in the database
-    const activeId = userId || localUser.user_id || localUser.interviewer_id;
+    const activeId = userId || localUser.user_id || localUser.interviewer_id || localUser.id;
     const dbUser = interviewersRes.data.find(int => 
       String(int.interviewer_id) === String(activeId) || String(int.id) === String(activeId)
     );

@@ -4,6 +4,13 @@ import './CompareCandidates.css';
 import ResumeViewer from '../../components/ResumeViewer';
 import ComparisonSection from '../../components/ComparisonSection';
 
+const BASE_URL = "https://unwithering-unattentively-herbert.ngrok-free.dev";
+const headers = {
+  headers: {
+    "ngrok-skip-browser-warning": "true"
+  }
+};
+
 function CompareCandidates() {
 
   const [roles, setRoles] = useState([]);
@@ -20,12 +27,12 @@ function CompareCandidates() {
 
   const [comparisonData, setComparisonData] = useState([]);
 
-  const BASE_URL = "https://unwithering-unattentively-herbert.ngrok-free.dev";
+  
 
 
   // Fetch roles
   useEffect(() => {
-    axios.get(`${BASE_URL}/get-roles/`)
+    axios.get(`${BASE_URL}/get-roles/`, headers)
       .then(res => {
 
         const roleList = Array.isArray(res.data) ? res.data : res.data.roles || [];
@@ -48,7 +55,7 @@ function CompareCandidates() {
 
       try {
 
-        const res = await axios.get(`${BASE_URL}/get-candidates/`);
+        const res = await axios.get(`${BASE_URL}/get-candidates/`, headers);
 
         const candidateList = Array.isArray(res.data)
           ? res.data
@@ -71,7 +78,7 @@ function CompareCandidates() {
 
           try {
 
-            const f = await axios.get(`${BASE_URL}/score-fitment/${c.candidate_id}`);
+            const f = await axios.get(`${BASE_URL}/score-fitment/${c.candidate_id}`, headers);
 
             filtered.push({
               ...c,
@@ -120,7 +127,7 @@ function CompareCandidates() {
 
       const data = await Promise.all(
         selectedCandidates.map(id =>
-          axios.get(`${BASE_URL}/score-fitment/${id}`)
+          axios.get(`${BASE_URL}/score-fitment/${id}`, headers)
         )
       );
 

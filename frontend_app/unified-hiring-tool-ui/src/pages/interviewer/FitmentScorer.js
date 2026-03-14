@@ -6,7 +6,11 @@ import ResumeViewer from '../../components/ResumeViewer';
 import FitmentViewer from '../../components/FitmentViewer';
 
 const BASE_URL = 'https://unwithering-unattentively-herbert.ngrok-free.dev';
-
+const headers = {
+  headers: {
+    "ngrok-skip-browser-warning": "true"
+  }
+};
 
 function FitmentScorer() {
   const [roles, setRoles] = useState([]);
@@ -31,19 +35,24 @@ function FitmentScorer() {
   const fetchFitmentData = async (candidateId) => {
     setFitmentModal({ open: true, data: null, loading: true });
     try {
-      const res = await axios.get(`${BASE_URL}/score-fitment/${candidateId}`);
+      const res = await axios.get(`${BASE_URL}/score-fitment/${candidateId}`, headers);
       setFitmentModal({ open: true, data: res.data, loading: false });
     } catch (err) {
-      console.error('❌ Fitment fetch failed:', err);
-      setFitmentModal({ open: true, data: null, loading: false });
-    }
+  console.error('❌ Fitment fetch failed:', err);
+
+  setFitmentModal({
+    open: true,
+    data: { error: "Fitment analysis failed. Check backend logs." },
+    loading: false
+  });
+}
   };
 
   // Fetch roles on mount
   useEffect(() => {
     const fetchRoles = async () => {
       try {
-        const res = await axios.get(`${BASE_URL}/get-roles/`);
+        const res = await axios.get(`${BASE_URL}/get-roles/`, headers);
         const openRoles = res.data.filter((r) => r.status === 'open');
         setRoles(openRoles);
       } catch (err) {
@@ -59,7 +68,7 @@ function FitmentScorer() {
 
     const fetchCandidates = async () => {
       try {
-        const res = await axios.get(`${BASE_URL}/get-candidates/`);
+        const res = await axios.get(`${BASE_URL}/get-candidates/`, headers);
         const roleCandidates = res.data.filter((c) => c.applied_role_id === selectedRoleId);
 
         const pendingCandidates = roleCandidates.filter((c) => {

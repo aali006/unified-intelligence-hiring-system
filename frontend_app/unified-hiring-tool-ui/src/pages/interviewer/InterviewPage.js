@@ -5,6 +5,11 @@ import axios from "axios";
 import "./InterviewPage.css";
 
 const BASE_URL = "https://unwithering-unattentively-herbert.ngrok-free.dev";
+const headers = {
+  headers: {
+    "ngrok-skip-browser-warning": "true"
+  }
+};
 
 function InterviewPage() {
   const [roles, setRoles] = useState([]);
@@ -34,7 +39,7 @@ function InterviewPage() {
   // Fetch roles
   useEffect(() => {
     axios
-      .get(`${BASE_URL}/get-roles/`)
+      .get(`${BASE_URL}/get-roles/`, headers)
       .then((res) => {
         const roleList = Array.isArray(res.data) ? res.data : res.data.roles || [];
         const openRoles = roleList.filter((r) => r.status === "open");
@@ -46,7 +51,7 @@ function InterviewPage() {
   // Fetch candidates for selected role
   const fetchCandidates = async (roleId) => {
     try {
-      const res = await axios.get(`${BASE_URL}/get-candidates/`);
+      const res = await axios.get(`${BASE_URL}/get-candidates/`, headers);
 
       const candidateList = Array.isArray(res.data)
         ? res.data

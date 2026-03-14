@@ -44,7 +44,18 @@ function FitmentViewer({ fitmentData, onClose, loading }) {
     );
   }
 
-  if (!fitmentData) return null;
+  // if (!fitmentData) return null;
+  if (fitmentData.error) {
+  return (
+    <div className="modal-backdrop">
+      <div className="modal-content center">
+        <h3>Error</h3>
+        <p>{fitmentData.error}</p>
+        <button className="close-btn" onClick={onClose}>Close</button>
+      </div>
+    </div>
+  );
+}
 
   const {
     fitment_score = 0,

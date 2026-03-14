@@ -22,10 +22,10 @@ def score_fitment_logic(candidate_id: str):
             print("❌ Candidate not found in MongoDB.")
             return None
 
-        # # 🚨 NEW: Return cached fitment result if it already exists
-        # if "results" in candidate:
-        #     print("✅ Existing fitment result found — returning cached result.")
-        #     return candidate["results"]
+        # 🚨 NEW: Return cached fitment result if it already exists
+        if "results" in candidate:
+            print("✅ Existing fitment result found — returning cached result.")
+            return candidate["results"]
 
         role_id = candidate["applied_role_id"]
         resume_id = int(candidate_id.replace("CND-", ""))
@@ -82,20 +82,40 @@ def score_fitment_logic(candidate_id: str):
 
         return result
 
+    # except Exception as e:
+    #     print("❌ Error in score_fitment_logic:", e)
+    #     return None
     except Exception as e:
-        print("❌ Error in score_fitment_logic:", e)
-        return None
+        import traceback
+        traceback.print_exc()
+        raise e
 
+# def get_vector_by_id(collection, id):
+#     result = client.retrieve(
+#         collection_name=collection,
+#         ids=[id],
+#         with_vectors=True
+#     )
+#     if result and result[0].vector:
+#         return np.array(result[0].vector).reshape(1, -1)
+#     return None
 def get_vector_by_id(collection, id):
+
+    print(f"🔎 Retrieving vector from {collection} with id:", id)
+
     result = client.retrieve(
         collection_name=collection,
         ids=[id],
         with_vectors=True
     )
-    if result and result[0].vector:
-        return np.array(result[0].vector).reshape(1, -1)
-    return None
 
+    if result and result[0].vector:
+        print("✅ Vector found")
+        return np.array(result[0].vector).reshape(1, -1)
+
+    print("❌ Vector NOT found")
+    return None
+    
 def compute_cosine_similarity(v1, v2):
     return float(cosine_similarity(v1, v2)[0][0])
 
