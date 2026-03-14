@@ -103,19 +103,16 @@ def score_fitment_logic(candidate_id: str):
 #     return None
 def get_vector_by_id(collection, id):
 
-    print(f"🔎 Retrieving vector from {collection} with id:", id)
-
     result = client.retrieve(
         collection_name=collection,
         ids=[id],
         with_vectors=True
     )
 
-    if result and result[0].vector:
-        print("✅ Vector found")
+    if result and len(result) > 0 and result[0].vector:
         return np.array(result[0].vector).reshape(1, -1)
 
-    print("❌ Vector NOT found")
+    print("❌ Vector NOT found for id:", id)
     return None
 
 def compute_cosine_similarity(v1, v2):

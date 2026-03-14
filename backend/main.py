@@ -185,7 +185,8 @@ async def add_candidate(
         raise HTTPException(status_code=409, detail=f"Candidate ID '{candidate_id_str}' already exists.")
 
     # qdrant_status = store_resume_embedding(candidate_id_num, resume_text, name, applied_role)
-    qdrant_status = store_resume_embedding(candidate_id_str, resume_text, name, applied_role)
+    # qdrant_status = store_resume_embedding(candidate_id_str, resume_text, name, applied_role)
+    qdrant_status = store_resume_embedding(candidate_id_num, resume_text, name, applied_role)
 
 
     return {
