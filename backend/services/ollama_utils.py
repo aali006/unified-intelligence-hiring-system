@@ -192,7 +192,7 @@ def call_fitment_llm(prompt: str, max_tokens: int = 1500):
 
     except Exception as e:
         print("❌ LLM call failed:", e)
-        return None
+        return ""
     
 def build_prompt(jd_text: str, resume_text: str) -> str:
     return f"""

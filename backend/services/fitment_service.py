@@ -162,7 +162,11 @@ def get_cleaned_fitment_analysis(jd_text, resume_text):
     print("📦 Prompt preview:\n", prompt[:500], "\n...trimmed")
     print("📏 Prompt length (chars):", len(prompt))
 
+    # raw_output = call_fitment_llm(prompt, max_tokens=1000)
     raw_output = call_fitment_llm(prompt, max_tokens=1000)
+
+    if not raw_output:
+        return empty_fitment_output()
     print("🧠 Raw model output preview:\n", raw_output[:1000])
 
     json_match = re.search(r"\{[\s\S]*\}", raw_output)
