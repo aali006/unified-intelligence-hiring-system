@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
-import InterviewerNavbar from '../../components/InterviewerNavbar';
+// import InterviewerNavbar from '../../components/InterviewerNavbar';
 import './InterviewerDashboard.css';
 import { Bar } from 'react-chartjs-2';
 
@@ -161,7 +161,7 @@ const fetchStats = async () => {
       console.log("Interviews Array Length:", allInterviews.length);
 
       const todayStr = new Date().toLocaleDateString('en-CA');
-      const currentMonth = new Date().getMonth();
+      // const currentMonth = new Date().getMonth();
 
       // IF TODAY IS 0, WE FORCE IT TO SHOW TOTAL COUNT JUST TO TEST CONNECTION
       const todayCount = allInterviews.filter(i => 

@@ -420,17 +420,37 @@ async def aggregate_interviews(candidate_id: str):
 #         "role": user["role"]
 #     }
 
+# @app.post("/login/")
+# async def login_user(email: str = Form(...), password: str = Form(...)):
+#     # This ignores the DB and lets you in immediately
+#     return {
+#         "user_id": "U001",
+#         "name": "Admin User",
+#         "role": "Interviewer",
+#         "email":email
+#     }
+    
 @app.post("/login/")
 async def login_user(email: str = Form(...), password: str = Form(...)):
-    # This ignores the DB and lets you in immediately
-    return {
+    user_payload = {
         "user_id": "U001",
         "name": "Admin User",
         "role": "Interviewer",
-        "email":email
+        "email": email
     }
     
-
+    # This ensures the Dashboard always finds a record for this ID
+    db.interviewers.update_one(
+        {"interviewer_id": user_payload["user_id"]},
+        {"$setOnInsert": {
+            "name": user_payload["name"],
+            "email": user_payload["email"],
+            "interviews_taken": [] 
+        }},
+        upsert=True
+    )
+    
+    return user_payload
 
 from fastapi import HTTPException, Response
 from fastapi.responses import StreamingResponse
