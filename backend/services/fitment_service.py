@@ -59,7 +59,7 @@ def score_fitment_logic(candidate_id: str):
         print("✅ Calling LLM for fitment analysis...")
         start = time.time()
 
-        focused_resume = extract_top_relevant_chunks(jd_text, resume_text)
+        # focused_resume = extract_top_relevant_chunks(jd_text, resume_text)
         print("🧩 Selected resume chunks (preview):\n", focused_resume[:500], "\n...trimmed")
         print("📜 Final chunked resume length:", len(focused_resume))
 
