@@ -13,79 +13,76 @@ import torch
 
 # Fast and small model for chunk scoring
 device = "cuda" if torch.cuda.is_available() else "cpu"
-# model = SentenceTransformer("BAAI/bge-small-en-v1.5", device=device)
-model = SentenceTransformer("all-MiniLM-L6-v2", device=device)
+model = SentenceTransformer("BAAI/bge-small-en-v1.5", device=device)
 
 def score_fitment_logic(candidate_id: str):
+    try:
+        print(f"🔍 Input candidate_id: {candidate_id}")
 
-    print(f"🔍 Input candidate_id: {candidate_id}")
+        candidate = candidates_collection.find_one({"candidate_id": candidate_id})
+        if not candidate:
+            print("❌ Candidate not found in MongoDB.")
+            return None
 
-    candidate = candidates_collection.find_one({"candidate_id": candidate_id})
-    if not candidate:
-        print("❌ Candidate not found in MongoDB.")
-        return None
+        # 🚨 NEW: Return cached fitment result if it already exists
+        if "results" in candidate:
+            print("✅ Existing fitment result found — returning cached result.")
+            return candidate["results"]
 
-    # IMPORTANT: Disable caching during debugging
-    # if "results" in candidate:
-    #     return candidate["results"]
+        role_id = candidate["applied_role_id"]
+        resume_id = int(candidate_id.replace("CND-", ""))
 
-    role_id = candidate["applied_role_id"]
-    resume_id = int(candidate_id.replace("CND-", ""))
+        print(f"✅ Candidate: {candidate['name']}")
+        print(f"🔧 Resume ID: {resume_id}, Role ID: {role_id}")
 
-    print(f"✅ Candidate: {candidate['name']}")
-    print(f"🔧 Resume ID: {resume_id}, Role ID: {role_id}")
+        resume_vector = get_vector_by_id(RESUME_COLLECTION, resume_id)
+        jd_vector = get_vector_by_id(JD_COLLECTION, int(role_id))
 
-    resume_vector = get_vector_by_id(RESUME_COLLECTION, resume_id)
-    jd_vector = get_vector_by_id(JD_COLLECTION, int(role_id))
+        if resume_vector is None or jd_vector is None:
+            print("❌ One or both vectors missing from Qdrant.")
+            return None
 
-    if resume_vector is None or jd_vector is None:
-        print("❌ One or both vectors missing from Qdrant.")
-        return None
+        print("✅ Vectors found – computing similarity...")
+        sim_score = compute_cosine_similarity(resume_vector, jd_vector)
+        fitment_percent = round((sim_score * 1.3 + 0.15) * 100, 2)  # boost mid-level similarities
+        fitment_percent = min(fitment_percent, 100.0)
 
-    print("✅ Vectors found – computing similarity...")
+        jd_doc = roles_collection.find_one({"role_id": role_id})
+        if not jd_doc or "job_description" not in jd_doc:
+            print("❌ JD not found in MongoDB.")
+            return None
 
-    sim_score = compute_cosine_similarity(resume_vector, jd_vector)
+        jd_text = jd_doc["job_description"]
+        resume_text = candidate["resume_text"]
 
-    fitment_percent = round((sim_score * 1.3 + 0.15) * 100, 2)
-    fitment_percent = min(fitment_percent, 100.0)
+        print("✅ Calling LLM for fitment analysis...")
+        start = time.time()
 
-    jd_doc = roles_collection.find_one({"role_id": role_id})
+        focused_resume = extract_top_relevant_chunks(jd_text, resume_text)
+        print("🧩 Selected resume chunks (preview):\n", focused_resume[:500], "\n...trimmed")
+        print("📜 Final chunked resume length:", len(focused_resume))
 
-    if not jd_doc:
-        print("❌ JD not found in MongoDB.")
-        return None
+        llm_analysis = get_cleaned_fitment_analysis(jd_text, focused_resume)
 
-    jd_text = jd_doc["job_description"]
-    resume_text = candidate["resume_text"]
+        print("⏱️ LLM analysis took", round(time.time() - start, 2), "seconds")
 
-    print("✅ Calling LLM for fitment analysis...")
+        result = {
+            "candidate_id": candidate_id,
+            "applied_role_id": role_id,
+            "fitment_score": fitment_percent,
+            "semantic_similarity": round(sim_score, 4),
+            **llm_analysis
+        }
 
-    start = time.time()
+        result_to_store = result.copy()
+        result_to_store["scored_at"] = datetime.now()
 
-    focused_resume = extract_top_relevant_chunks(jd_text, resume_text)
+        candidates_collection.update_one(
+            {"candidate_id": candidate_id},
+            {"$set": {"results": result_to_store}}
+        )
 
-    llm_analysis = get_cleaned_fitment_analysis(jd_text, focused_resume)
-
-    print("⏱️ LLM analysis took", round(time.time() - start, 2), "seconds")
-
-    result = {
-        "candidate_id": candidate_id,
-        "applied_role_id": role_id,
-        "fitment_score": fitment_percent,
-        "semantic_similarity": round(sim_score, 4),
-        **llm_analysis
-    }
-
-    # Save result
-    result_to_store = result.copy()
-    result_to_store["scored_at"] = datetime.now()
-
-    candidates_collection.update_one(
-        {"candidate_id": candidate_id},
-        {"$set": {"results": result_to_store}}
-    )
-
-    return result
+        return result
 
     # except Exception as e:
     #     print("❌ Error in score_fitment_logic:", e)
@@ -121,7 +118,7 @@ def get_vector_by_id(collection, id):
 def compute_cosine_similarity(v1, v2):
     return float(cosine_similarity(v1, v2)[0][0])
 
-def extract_top_relevant_chunks(jd_text, resume_text, min_percent=0.50, min_coverage_chars=1500):
+def extract_top_relevant_chunks(jd_text, resume_text, min_percent=0.25, min_coverage_chars=1500):
     """
     Selects the most relevant chunks from the resume for LLM analysis.
     Uses semantic similarity + JD keyword overlap boosting.
@@ -154,47 +151,35 @@ def extract_top_relevant_chunks(jd_text, resume_text, min_percent=0.50, min_cove
     for chunk, _ in top_chunks:
         selected.append(chunk)
         accumulated += len(chunk)
-        if accumulated >= threshold_chars or len(selected) >= 12:  # bumped to 8 chunks
+        if accumulated >= threshold_chars or len(selected) >= 8:  # bumped to 8 chunks
             break
 
     print(f"✅ Selected {len(selected)} chunks (~{accumulated} chars) with JD keyword boosting")
     return "\n\n".join(selected)
 
 def get_cleaned_fitment_analysis(jd_text, resume_text):
-
     prompt = build_prompt(jd_text, resume_text)
+    print("📦 Prompt preview:\n", prompt[:500], "\n...trimmed")
+    print("📏 Prompt length (chars):", len(prompt))
 
+    # raw_output = call_fitment_llm(prompt, max_tokens=1000)
     raw_output = call_fitment_llm(prompt, max_tokens=1000)
 
     if not raw_output:
-        print("⚠️ LLM returned empty output")
+        return empty_fitment_output()
+    print("🧠 Raw model output preview:\n", raw_output[:1000])
+
+    json_match = re.search(r"\{[\s\S]*\}", raw_output)
+    if not json_match:
+        print("⚠️ No valid JSON found in output.")
         return empty_fitment_output()
 
-    print("🧠 Raw LLM output preview:", str(raw_output)[:500])
-
-    parsed = None
-
-    # Case 1: LLM returned dict
-    if isinstance(raw_output, dict):
-        parsed = raw_output
-
-    # Case 2: LLM returned string containing JSON
-    elif isinstance(raw_output, str):
-
-        try:
-            json_match = re.search(r"\{[\s\S]*\}", raw_output)
-
-            if json_match:
-                parsed = json.loads(json_match.group())
-
-        except Exception as e:
-            print("❌ JSON parsing failed:", e)
-
-    if not parsed:
-        print("⚠️ Could not extract JSON from LLM output")
+    try:
+        parsed = json.loads(json_match.group())
+        return clean_llm_gap_output(parsed)
+    except Exception as e:
+        print("❌ JSON parsing failed:", e)
         return empty_fitment_output()
-
-    return clean_llm_gap_output(parsed)
 
 def clean_llm_gap_output(raw_output):
     def canonicalize(skill):
@@ -300,6 +285,3 @@ def empty_fitment_output():
         },
         "matched_skills": []
     }
-
-
-
