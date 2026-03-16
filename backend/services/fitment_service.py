@@ -167,7 +167,7 @@ def get_cleaned_fitment_analysis(jd_text, resume_text):
 
     if not raw_output:
         return empty_fitment_output()
-    print("🧠 Raw model output preview:\n", str(raw_output)[:1000])
+    print("🧠 Raw model output preview:\n")
 
     json_match = re.search(r"\{[\s\S]*\}", raw_output)
     if not json_match:
