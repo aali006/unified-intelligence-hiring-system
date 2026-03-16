@@ -119,7 +119,7 @@ def get_vector_by_id(collection, id):
 def compute_cosine_similarity(v1, v2):
     return float(cosine_similarity(v1, v2)[0][0])
 
-def extract_top_relevant_chunks(jd_text, resume_text, min_percent=0.25, min_coverage_chars=1500):
+def extract_top_relevant_chunks(jd_text, resume_text, min_percent=0.50, min_coverage_chars=1500):
     """
     Selects the most relevant chunks from the resume for LLM analysis.
     Uses semantic similarity + JD keyword overlap boosting.
@@ -152,7 +152,7 @@ def extract_top_relevant_chunks(jd_text, resume_text, min_percent=0.25, min_cove
     for chunk, _ in top_chunks:
         selected.append(chunk)
         accumulated += len(chunk)
-        if accumulated >= threshold_chars or len(selected) >= 8:  # bumped to 8 chunks
+        if accumulated >= threshold_chars or len(selected) >= 12:  # bumped to 8 chunks
             break
 
     print(f"✅ Selected {len(selected)} chunks (~{accumulated} chars) with JD keyword boosting")
