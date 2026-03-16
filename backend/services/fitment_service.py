@@ -158,28 +158,38 @@ def extract_top_relevant_chunks(jd_text, resume_text, min_percent=0.25, min_cove
     return "\n\n".join(selected)
 
 def get_cleaned_fitment_analysis(jd_text, resume_text):
-    prompt = build_prompt(jd_text, resume_text)
-    print("📦 Prompt preview:\n", prompt[:500], "\n...trimmed")
-    print("📏 Prompt length (chars):", len(prompt))
 
-    # raw_output = call_fitment_llm(prompt, max_tokens=1000)
+    prompt = build_prompt(jd_text, resume_text)
+
     raw_output = call_fitment_llm(prompt, max_tokens=1000)
 
     if not raw_output:
         return empty_fitment_output()
-    print("🧠 Raw model output preview:\n")
 
-    json_match = re.search(r"\{[\s\S]*\}", raw_output)
-    if not json_match:
-        print("⚠️ No valid JSON found in output.")
+    print("🧠 Raw model output preview:", str(raw_output)[:500])
+
+    parsed = None
+
+    # Case 1: already parsed JSON
+    if isinstance(raw_output, dict):
+        parsed = raw_output
+
+    # Case 2: string containing JSON
+    elif isinstance(raw_output, str):
+
+        try:
+            json_match = re.search(r"\{[\s\S]*\}", raw_output)
+
+            if json_match:
+                parsed = json.loads(json_match.group())
+
+        except Exception as e:
+            print("❌ JSON parsing failed:", e)
+
+    if not parsed:
         return empty_fitment_output()
 
-    try:
-        parsed = json.loads(json_match.group())
-        return clean_llm_gap_output(parsed)
-    except Exception as e:
-        print("❌ JSON parsing failed:", e)
-        return empty_fitment_output()
+    return clean_llm_gap_output(parsed)
 
 def clean_llm_gap_output(raw_output):
     def canonicalize(skill):
