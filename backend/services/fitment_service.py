@@ -160,27 +160,24 @@ def extract_top_relevant_chunks(jd_text, resume_text, min_percent=0.25, min_cove
 
 def get_cleaned_fitment_analysis(jd_text, resume_text):
     prompt = build_prompt(jd_text, resume_text)
-    print("📦 Prompt preview:\n", prompt[:500], "\n...trimmed")
-    print("📏 Prompt length (chars):", len(prompt))
 
-    # raw_output = call_fitment_llm(prompt, max_tokens=1000)
     raw_output = call_fitment_llm(prompt, max_tokens=1000)
 
     if not raw_output:
         return empty_fitment_output()
-    print("🧠 Raw model output preview:\n", raw_output[:1000])
 
-    json_match = re.search(r"\{[\s\S]*\}", raw_output)
-    if not json_match:
-        print("⚠️ No valid JSON found in output.")
-        return empty_fitment_output()
+    print("🧠 Raw model output:", raw_output)
 
-    try:
-        parsed = json.loads(json_match.group())
-        return clean_llm_gap_output(parsed)
-    except Exception as e:
-        print("❌ JSON parsing failed:", e)
-        return empty_fitment_output()
+    if isinstance(raw_output, dict):
+        return clean_llm_gap_output(raw_output)
+
+    if isinstance(raw_output, str):
+        json_match = re.search(r"\{[\s\S]*\}", raw_output)
+        if json_match:
+            parsed = json.loads(json_match.group())
+            return clean_llm_gap_output(parsed)
+
+    return empty_fitment_output()
 
 def clean_llm_gap_output(raw_output):
     def canonicalize(skill):
