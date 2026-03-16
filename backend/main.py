@@ -426,7 +426,7 @@ async def login_user(email: str = Form(...), password: str = Form(...)):
     return {
         "user_id": "U001",
         "name": "Admin User",
-        "role": "Interviewer",
+        "role": "HR",
         "email":email
     }
     
