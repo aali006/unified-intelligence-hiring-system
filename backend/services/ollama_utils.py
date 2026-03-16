@@ -161,8 +161,7 @@ import httpx # Make sure to pip install httpx
 #         print("❌ Fitment LLM call failed:", e)
 #         return ""
 
-def call_fitment_llm(prompt: str, max_tokens: int = 1500):
-
+def call_fitment_llm(prompt: str, max_tokens: int = 1500) -> str:
     try:
         response = requests.post(
             OLLAMA_BASE_URL,
@@ -172,27 +171,28 @@ def call_fitment_llm(prompt: str, max_tokens: int = 1500):
                 "stream": False,
                 "options": {
                     "num_predict": max_tokens,
-                    "temperature": 0.0,
-                    "num_ctx": 4096
+                    "temperature": 0.0,      # Absolute consistency
+                    "seed": 42,               # Math lock
+                    "num_ctx": 8192,          # CRITICAL: Increases memory so it doesn't "forget" PyTorch
+                    "top_k": 1,               # Forces only the #1 most likely word
+                    "top_p": 0.0
                 }
             },
-            timeout=300
+            timeout=180 
         )
-
+        
         if response.status_code != 200:
-            print("❌ Ollama returned:", response.status_code)
             return ""
 
-        data = response.json()
-        raw_output = data.get("response", "").strip()
-
-        raw_output = re.sub(r'^```json\s*|\s*```$', '', raw_output)
-
-        return raw_output   # ← IMPORTANT FIX
+        json_data = response.json()
+        raw_output = json_data.get("response", "").strip()
+        raw_output = re.sub(r'^```json\s*|\s*```$', '', raw_output, flags=re.MULTILINE)
+        return raw_output
 
     except Exception as e:
-        print("❌ LLM call failed:", e)
+        print("❌ Fitment LLM call failed:", e)
         return ""
+    
     
 def build_prompt(jd_text: str, resume_text: str) -> str:
     return f"""
