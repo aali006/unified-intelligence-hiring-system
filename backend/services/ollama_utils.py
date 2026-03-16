@@ -181,14 +181,14 @@ def call_fitment_llm(prompt: str, max_tokens: int = 1500):
 
         if response.status_code != 200:
             print("❌ Ollama returned:", response.status_code)
-            return None
+            return ""
 
         data = response.json()
         raw_output = data.get("response", "").strip()
 
         raw_output = re.sub(r'^```json\s*|\s*```$', '', raw_output)
 
-        return json.loads(raw_output)
+        return raw_output   # ← IMPORTANT FIX
 
     except Exception as e:
         print("❌ LLM call failed:", e)
