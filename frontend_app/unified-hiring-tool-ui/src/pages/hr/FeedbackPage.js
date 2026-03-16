@@ -87,8 +87,13 @@ setCandidates(filtered);
 
     try {
       const res = await axios.get(
-        `${BASE_URL}/aggregate-interviews/${candidate.candidate_id}?fresh=${Date.now()}`
-      );
+  `${BASE_URL}/aggregate-interviews/${candidate.candidate_id}?fresh=${Date.now()}`,
+  {
+    headers: {
+      "ngrok-skip-browser-warning": "true"
+    }
+  }
+);
       setAggregate(res.data);
     } catch (err) {
       console.error('❌ Failed to fetch aggregate:', err);
